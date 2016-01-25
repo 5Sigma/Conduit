@@ -1,10 +1,10 @@
 package cmd
 
 import (
+	"conduit/queue"
+	"conduit/storage"
 	"fmt"
 	"github.com/spf13/cobra"
-	"queue"
-	"storage"
 )
 
 // sendCmd represents the send command

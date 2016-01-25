@@ -15,7 +15,7 @@
 package cmd
 
 import (
-	"engine"
+	"conduit/engine"
 	"fmt"
 	"github.com/spf13/cobra"
 	"os"

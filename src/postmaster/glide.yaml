@@ -1,0 +1,4 @@
+package: postmaster
+import:
+- package: github.com/cznic/ql
+- package: github.com/nu7hatch/gouuid

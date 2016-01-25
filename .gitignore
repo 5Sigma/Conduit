@@ -27,4 +27,5 @@ _testmain.go
 
 bin/
 
+vendor/
 
