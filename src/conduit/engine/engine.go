@@ -7,19 +7,29 @@ import (
 	"os"
 )
 
+//read javascript file and execute
 func ExecuteFile(filepath string) {
 	data, err := ioutil.ReadFile(filepath)
 	if err != nil {
 		fmt.Println("Error reading file: ", err.Error())
 		os.Exit(-1)
 	}
-	Execute(string(data))
+	err = Execute(string(data))
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
+//executes commands
 func Execute(script string) error {
 	vm := createVM()
 	_, err := vm.Run(script)
 	return err
+}
+
+func jsThrow(call otto.FunctionCall, err error) {
+	value, _ := call.Otto.Call("new Error", nil, err.Error())
+	panic(value)
 }
 
 func createVM() *otto.Otto {
@@ -30,23 +40,13 @@ func createVM() *otto.Otto {
 
 	fileObj, _ := vm.Object(`$file = {}`)
 	fileObj.Set("exists", _file_exists)
+	fileObj.Set("write", _file_write)
+	fileObj.Set("copy", _file_copy)
+	fileObj.Set("size", _file_size)
+	fileObj.Set("move", _file_move)
+	fileObj.Set("mkdir", _file_mkdir)
+	fileObj.Set("delete", _file_delete)
+	fileObj.Set("readString", _file_readString)
 
 	return vm
-}
-
-func _log_info(call otto.FunctionCall) otto.Value {
-	msg, _ := call.Argument(0).ToString()
-	fmt.Println(msg)
-	return otto.Value{}
-}
-
-func _file_exists(call otto.FunctionCall) otto.Value {
-	filepath, _ := call.Argument(0).ToString()
-	var val otto.Value
-	if _, err := os.Stat(filepath); os.IsNotExist(err) {
-		val, _ = otto.ToValue(false)
-	} else {
-		val, _ = otto.ToValue(true)
-	}
-	return val
 }
