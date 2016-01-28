@@ -48,5 +48,14 @@ func createVM() *otto.Otto {
 	fileObj.Set("delete", _file_delete)
 	fileObj.Set("readString", _file_readString)
 
+	requestObj, _ := vm.Object(`$request = {}`)
+	requestObj.Set("download", _request_download)
+
+	systemObj, _ := vm.Object(`$system = {}`)
+	systemObj.Set("executeAndRead", _system_executeAndRead)
+	systemObj.Set("execute", _system_execute)
+	systemObj.Set("detach", _system_detach)
+	systemObj.Set("currentUser", _system_currentUser)
+
 	return vm
 }
