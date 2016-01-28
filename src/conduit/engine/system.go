@@ -5,7 +5,6 @@ import (
 	"github.com/robertkrimen/otto"
 	"os/exec"
 	"os/user"
-	"syscall"
 )
 
 //executes a program
@@ -21,23 +20,6 @@ func _system_execute(call otto.FunctionCall) otto.Value {
 		if throw != "false" {
 			jsThrow(call, err)
 		}
-	}
-	return otto.Value{}
-}
-
-//executes a program outside of the conduit process group
-func _system_detach(call otto.FunctionCall) otto.Value {
-	cmdName, _ := call.Argument(0).ToString()
-	cmdArgs, _ := call.Argument(1).Export()
-	commandStrings := []string{}
-	if strings, ok := cmdArgs.([]string); ok {
-		commandStrings = strings
-	}
-	cmd := exec.Command(cmdName, commandStrings...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-
-	if err := cmd.Start(); err != nil {
-		jsThrow(call, err)
 	}
 	return otto.Value{}
 }

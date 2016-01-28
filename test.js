@@ -11,7 +11,11 @@ try {
   // console.log("read this: " + $file.readString("write"));
   //console.log($system.executeAndRead('sh', ["-c", "cd /Users/chris/Downloads/ && cat test.rb"]));
   // console.log(JSON.stringify($system.currentUser()));
-  $request.download('http://upgrades.quikserve.com.s3.amazonaws.com/Conduit4/conduit.jar', 'conduit.jar');
+  //$request.download('http://upgrades.quikserve.com.s3.amazonaws.com/Conduit4/conduit.jar', 'conduit.jar');
+  // console.log($request.get("http://www.google.com"));
+  // $system.kill("TextEdit");
+  while (true) {}
+  // $system.execute("echo", []);
 } catch(err) {
   throw(new Error(err));
 } finally {

@@ -3,6 +3,7 @@ package engine
 import (
 	"github.com/robertkrimen/otto"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 )
@@ -28,4 +29,24 @@ func _request_download(call otto.FunctionCall) otto.Value {
 	}
 
 	return otto.Value{}
+}
+
+func _request_get(call otto.FunctionCall) otto.Value {
+	url, _ := call.Argument(0).ToString()
+
+	response, err := http.Get(url)
+	if err != nil {
+		jsThrow(call, err)
+	}
+	defer response.Body.Close()
+
+	content, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		jsThrow(call, err)
+	}
+	v, err := otto.ToValue(string(content))
+	if err != nil {
+		jsThrow(call, err)
+	}
+	return v
 }

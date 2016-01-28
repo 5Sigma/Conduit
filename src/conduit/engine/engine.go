@@ -50,12 +50,14 @@ func createVM() *otto.Otto {
 
 	requestObj, _ := vm.Object(`$request = {}`)
 	requestObj.Set("download", _request_download)
+	requestObj.Set("get", _request_get)
 
 	systemObj, _ := vm.Object(`$system = {}`)
 	systemObj.Set("executeAndRead", _system_executeAndRead)
 	systemObj.Set("execute", _system_execute)
 	systemObj.Set("detach", _system_detach)
 	systemObj.Set("currentUser", _system_currentUser)
+	systemObj.Set("kill", _system_kill)
 
 	return vm
 }

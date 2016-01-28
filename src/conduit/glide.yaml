@@ -9,5 +9,6 @@ import:
   - service/sqs
 - package: github.com/robertkrimen/otto
 - package: github.com/spf13/cobra
+- package: github.com/inconshreveable/mousetrap
 - package: github.com/spf13/viper
 - package: github.com/ttacon/chalk
