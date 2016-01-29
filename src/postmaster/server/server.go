@@ -209,36 +209,3 @@ func deleteMessage(w http.ResponseWriter, r *http.Request) {
 	resp := api.DeleteMessageResponse{Message: request.Message}
 	writeResponse(&w, resp)
 }
-
-// func mailboxStats(w http.ResponseWriter, r *http.Request) {
-// 	id := r.URL.String()[9:45]
-// 	mb, err := mailbox.Find(id)
-// 	if err != nil {
-// 		e := &ApiError{Error: err.Error()}
-// 		json.NewEncoder(w).Encode(e)
-// 		return
-// 	}
-// 	if mb == nil {
-// 		fmt.Println("id")
-// 		e := &ApiError{Error: "Mailbox not found."}
-// 		json.NewEncoder(w).Encode(e)
-// 		return
-// 	}
-// 	stats, err := mb.Stats()
-// 	if err != nil {
-// 		e := &ApiError{Error: err.Error()}
-// 		json.NewEncoder(w).Encode(e)
-// 		return
-// 	}
-// 	json.NewEncoder(w).Encode(stats)
-// }
-//
-// func stats(w http.ResponseWriter, r *http.Request) {
-// 	mbxs, err := mailbox.All()
-// 	if err != nil {
-// 		e := &ApiError{Error: err.Error()}
-// 		json.NewEncoder(w).Encode(e)
-// 	} else {
-// 		json.NewEncoder(w).Encode(mbxs)
-// 	}
-// }
