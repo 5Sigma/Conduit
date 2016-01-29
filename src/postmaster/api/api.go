@@ -11,6 +11,7 @@ type ApiError struct {
 type PutMessageRequest struct {
 	Mailboxes []string `json:"mailboxes"`
 	Body      string   `json:"body"`
+	Pattern   string   `json:"pattern"`
 }
 
 type PutMessageResponse struct {

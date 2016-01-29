@@ -56,7 +56,6 @@ command to be delivered to it for processing.`,
 					log.Error("Error executing script." + script.Receipt)
 					log.Debug(err.Error())
 				}
-				// log.Info("Script exeucted: " + script.Receipt)
 				err = q.Delete(script)
 				if err != nil {
 					log.Error("Could not confirm script.")
@@ -64,6 +63,8 @@ command to be delivered to it for processing.`,
 				} else {
 					// log.Info("Script confirmed: " + script.Receipt)
 				}
+			} else {
+				log.Info("No messages")
 			}
 		}
 	},

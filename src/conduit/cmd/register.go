@@ -22,12 +22,15 @@ import (
 
 // registerCmd represents the register command
 var registerCmd = &cobra.Command{
-	Use:   "register",
+	Use:   "register [name]",
 	Short: "Register a new mailbox",
 	Long:  `This registers a new mailbox for the local server.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) == 0 {
+			log.Fatal("No mailbox name specified")
+		}
 		mailbox.OpenDB()
-		mb, err := mailbox.Create()
+		mb, err := mailbox.Create(args[0])
 		if err != nil {
 			log.Warn(err.Error())
 			log.Fatal("Could not create mailbox")

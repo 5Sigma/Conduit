@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-var mailboxes []mailbox.Mailbox
+var pollingChannels = make(map[string]chan *mailbox.Message)
 
 type EndPoint struct {
 	Method  string
@@ -49,18 +49,18 @@ func (h *EndPointHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func Start(addr string) error {
 	if mailbox.DB == nil {
 		mailbox.OpenDB()
-	}
-	if _, err := os.Stat("mailboxes.db"); os.IsNotExist(err) {
-		err := mailbox.CreateDB()
-		if err != nil {
-			panic(err)
+		if _, err := os.Stat("mailboxes.db"); os.IsNotExist(err) {
+			err := mailbox.CreateDB()
+			if err != nil {
+				panic(err)
+			}
 		}
 	}
 	endpoints := EndPointHandler{}
 	svr := &http.Server{
 		Addr:         addr,
 		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		WriteTimeout: 0,
 	}
 	endpoints.Add("POST", `/get`, getMessage)
 	endpoints.Add("POST", "/put", putMessage)
@@ -70,8 +70,8 @@ func Start(addr string) error {
 	return err
 }
 
-func CreateMailbox() (*mailbox.Mailbox, error) {
-	return mailbox.Create()
+func CreateMailbox(id string) (*mailbox.Mailbox, error) {
+	return mailbox.Create(id)
 }
 
 func writeResponse(w *http.ResponseWriter, response interface{}) error {
@@ -94,7 +94,7 @@ func readRequest(r *http.Request, req interface{}) error {
 }
 
 func getMessage(w http.ResponseWriter, r *http.Request) {
-	// time.Sleep(500 * time.Millisecond)
+	fmt.Println("REQUESTING MESSAGE")
 	var request api.GetMessageRequest
 	err := readRequest(r, &request)
 	if err != nil {
@@ -107,25 +107,30 @@ func getMessage(w http.ResponseWriter, r *http.Request) {
 		sendError(w, err.Error())
 		return
 	}
+
 	if mb == nil {
 		sendError(w, fmt.Sprintf("Mailbox %s not found.", request.Mailbox))
 		return
 	}
+
 	msg, err := mb.GetMessage()
 	if err != nil {
 		e := &api.ApiError{Error: err.Error()}
 		writeResponse(&w, e)
 	}
 	if msg == nil {
-		writeResponse(&w, nil)
-		return
+		pollingChannels[mb.Id] = make(chan *mailbox.Message)
+		msg = <-pollingChannels[mb.Id]
 	}
+	delete(pollingChannels, mb.Id)
+
 	response := api.GetMessageResponse{
 		Message:      msg.Id,
 		Body:         msg.Body,
 		CreatedAt:    msg.CreatedAt,
 		ReceiveCount: msg.ReceiveCount,
 	}
+
 	writeResponse(&w, response)
 }
 
@@ -143,25 +148,48 @@ func putMessage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		sendError(w, "Could not parse request")
 	}
-	if len(request.Mailboxes) == 0 {
-		sendError(w, "No mailboxes specified")
-		return
+	mailboxes := []mailbox.Mailbox{}
+	if request.Pattern != "" {
+		results, err := mailbox.Search(request.Pattern)
+		if err != nil {
+			sendError(w, err.Error())
+			return
+		}
+		for _, mb := range results {
+			mailboxes = append(mailboxes, mb)
+		}
 	}
 	for _, mbId := range request.Mailboxes {
 		mb, err := mailbox.Find(mbId)
 		if err != nil {
 			sendError(w, err.Error())
-			return
 		}
 		if mb == nil {
-			sendError(w, fmt.Sprintf("Mailbox not found. (%s)", request.Mailboxes[0]))
+			sendError(w, fmt.Sprintf("Mailbox not found. (%s)", mbId))
 			return
 		}
-		_, err = mb.PutMessage(request.Body)
+		mailboxes = append(mailboxes, *mb)
+	}
+
+	if len(mailboxes) == 0 {
+		sendError(w, "No mailboxes specified")
+		return
+	}
+
+	mbList := []string{}
+	for _, mb := range mailboxes {
+		msg, err := mb.PutMessage(request.Body)
+		mbList = append(mbList, mb.Id)
+		if err != nil {
+			sendError(w, err.Error())
+		}
+		if pollChannel, ok := pollingChannels[mb.Id]; ok {
+			pollChannel <- msg
+		}
 	}
 	resp := api.PutMessageResponse{
 		MessageSize: r.ContentLength,
-		Mailboxes:   request.Mailboxes,
+		Mailboxes:   mbList,
 	}
 	writeResponse(&w, resp)
 }

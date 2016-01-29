@@ -18,6 +18,7 @@ type Client struct {
 
 func (client *Client) request(endpoint string, req interface{},
 	res interface{}) error {
+	http.DefaultClient.Timeout = 0
 	requestBytes, err := json.Marshal(req)
 	url := fmt.Sprintf("http://%s/%s", client.Host, endpoint)
 	reader := bytes.NewReader(requestBytes)
@@ -46,11 +47,12 @@ func (client *Client) Get() (*api.GetMessageResponse, error) {
 	return &response, nil
 }
 
-func (client *Client) Put(mbxs []string,
+func (client *Client) Put(mbxs []string, pattern string,
 	msg string) (*api.PutMessageResponse, error) {
 	request := api.PutMessageRequest{
 		Mailboxes: mbxs,
 		Body:      msg,
+		Pattern:   pattern,
 	}
 	var response api.PutMessageResponse
 	err := client.request("put", request, &response)

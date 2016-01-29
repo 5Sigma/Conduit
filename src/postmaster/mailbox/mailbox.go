@@ -3,6 +3,7 @@ package mailbox
 import (
 	"github.com/cznic/ql"
 	"github.com/nu7hatch/gouuid"
+	"strings"
 	"time"
 )
 
@@ -117,13 +118,9 @@ func (mb *Mailbox) MessageCount() (int64, error) {
 	return count, nil
 }
 
-func Create() (*Mailbox, error) {
-	id, err := uuid.NewV4()
-	if err != nil {
-		return nil, err
-	}
-	mb := &Mailbox{Id: id.String()}
-	_, _, err = DB.Run(ql.NewRWCtx(), `
+func Create(id string) (*Mailbox, error) {
+	mb := &Mailbox{Id: strings.ToLower(id)}
+	_, _, err := DB.Run(ql.NewRWCtx(), `
 		BEGIN TRANSACTION;
 		INSERT INTO mailbox (
 			id
@@ -131,7 +128,7 @@ func Create() (*Mailbox, error) {
 			$1
 		);
 		COMMIT
-		`, id.String())
+		`, mb.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -181,6 +178,22 @@ func Find(id string) (*Mailbox, error) {
 		return false, nil
 	})
 	return mbx, nil
+}
+
+func Search(rawPattern string) ([]Mailbox, error) {
+	mbxs := []Mailbox{}
+	pattern := strings.ToLower(strings.Replace(rawPattern, "*", ".*", -1))
+	rss, _, err := DB.Run(ql.NewRWCtx(),
+		` SELECT id FROM mailbox WHERE id LIKE $1`, pattern)
+	if err != nil {
+		return nil, err
+	}
+	rss[0].Do(false, func(data []interface{}) (bool, error) {
+		mb := Mailbox{Id: data[0].(string)}
+		mbxs = append(mbxs, mb)
+		return false, nil
+	})
+	return mbxs, nil
 }
 
 type MailboxStats struct {

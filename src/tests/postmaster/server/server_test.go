@@ -10,20 +10,17 @@ import (
 	"postmaster/mailbox"
 	"postmaster/server"
 	"testing"
-	"time"
 )
 
 func TestMain(m *testing.M) {
-	mailbox.OpenDB()
+	mailbox.OpenMemDB()
 	mailbox.CreateDB()
 
 	go server.Start(":4111")
-	time.Sleep(500)
 
 	retCode := m.Run()
 
 	mailbox.CloseDB()
-	os.Remove("mailboxes.db")
 	os.Exit(retCode)
 }
 
@@ -41,7 +38,7 @@ func doRequest(t *testing.T, req interface{}, response interface{}, url string) 
 }
 
 func TestGet(t *testing.T) {
-	mb, err := mailbox.Create()
+	mb, err := mailbox.Create("get")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,8 +59,8 @@ func TestGet(t *testing.T) {
 }
 
 func TestPut(t *testing.T) {
-	mb1, _ := mailbox.Create()
-	mb2, _ := mailbox.Create()
+	mb1, _ := mailbox.Create("put1")
+	mb2, _ := mailbox.Create("put2")
 	req := api.PutMessageRequest{
 		Mailboxes: []string{
 			mb1.Id,
@@ -106,8 +103,25 @@ func TestPut(t *testing.T) {
 	}
 }
 
+func TestPutByPattern(t *testing.T) {
+	mb, _ := mailbox.Create("PATTERN")
+	req := api.PutMessageRequest{Pattern: "P*"}
+	var resp api.PutMessageResponse
+	code := doRequest(t, req, &resp, "put")
+	count, err := mb.MessageCount()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count == 0 {
+		t.Fatal("Message not added to mailbox")
+	}
+	if code != 200 {
+		t.Fatal("Server responded with", code)
+	}
+}
+
 func TestDelete(t *testing.T) {
-	mb, err := mailbox.Create()
+	mb, err := mailbox.Create("delete")
 	if err != nil {
 		t.Fatal(err)
 	}

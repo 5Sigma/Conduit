@@ -6,17 +6,16 @@ import (
 	"postmaster/mailbox"
 	"postmaster/server"
 	"testing"
-	"time"
 )
 
 var q queue.Queue
 var mb *mailbox.Mailbox
 
 func TestMain(m *testing.M) {
-	mailbox.OpenDB()
+	mailbox.OpenMemDB()
 	mailbox.CreateDB()
 	var err error
-	mb, err = mailbox.Create()
+	mb, err = mailbox.Create("mb")
 	if err != nil {
 		panic(err)
 	}
@@ -24,12 +23,10 @@ func TestMain(m *testing.M) {
 	q = queue.New("localhost:4111", mb.Id)
 
 	go server.Start(":4111")
-	time.Sleep(500)
 
 	retCode := m.Run()
 
 	mailbox.CloseDB()
-	os.Remove("mailboxes.db")
 	os.Exit(retCode)
 }
 

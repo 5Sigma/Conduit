@@ -17,23 +17,32 @@ javascript file or a zip file containing a javascript file and other arbitrary
 files.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		q := queue.New(viper.GetString("queue.host"), viper.GetString("mailbox"))
+		if len(args) == 0 {
+			log.Fatal("No script specified.")
+		}
 		filename := args[0]
-		client := args[1]
+		mailboxes := args[1:]
+		pattern := cmd.Flag("pattern").Value.String()
+		if pattern == "" && len(mailboxes) == 0 {
+			log.Fatal("Must provide either a list of mailboxes, a pattern, or both.")
+		}
 		data, err := ioutil.ReadFile(filename)
 		if err != nil {
 			log.Fatal(err.Error())
 		}
-		err = q.Put([]string{client}, &queue.ScriptCommand{ScriptBody: string(data)})
+		scriptCmd := &queue.ScriptCommand{ScriptBody: string(data)}
+		count, err := q.Put(mailboxes, pattern, scriptCmd)
 		if err != nil {
 			log.Fatal(err.Error())
 		}
-		log.Infof("Script deployed to %s (%d)", client, len(data))
+		log.Infof("Script deployed to %d mailboxes (%d bytes)",
+			count, len(data))
 	},
 }
 
 func init() {
 	RootCmd.AddCommand(sendCmd)
-
+	sendCmd.Flags().StringP("pattern", "p", "", "Wildcard search for mailboxes.")
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command

@@ -55,6 +55,12 @@ func OpenDB() {
 	}
 }
 
+func OpenMemDB() error {
+	var err error
+	DB, err = ql.OpenMem()
+	return err
+}
+
 func CloseDB() error {
 	err := DB.Close()
 	return err

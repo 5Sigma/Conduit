@@ -44,9 +44,12 @@ func (q *Queue) Get() (*ScriptCommand, error) {
 	return script, nil
 }
 
-func (q *Queue) Put(mailboxes []string, cmd *ScriptCommand) error {
-	_, err := q.Client.Put(mailboxes, cmd.ScriptBody)
-	return err
+func (q *Queue) Put(mailboxes []string, pattern string, cmd *ScriptCommand) (int, error) {
+	resp, err := q.Client.Put(mailboxes, pattern, cmd.ScriptBody)
+	if err != nil {
+		return 0, err
+	}
+	return len(resp.Mailboxes), err
 }
 
 func (q *Queue) Delete(cmd *ScriptCommand) error {

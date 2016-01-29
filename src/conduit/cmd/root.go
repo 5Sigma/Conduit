@@ -41,11 +41,12 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.conduit.yaml)")
-	RootCmd.PersistentFlags().Bool("slave", false, "run in slave mode")
-	RootCmd.PersistentFlags().Int("port", 3111,
-		"the port to use for master/save operations")
-	RootCmd.PersistentFlags().String("key", "", "AWS Access ID.")
-	RootCmd.PersistentFlags().String("secret", "", "AWS secret token")
+	RootCmd.PersistentFlags().BoolP("debug", "d", false, "Print debug information")
+	// RootCmd.PersistentFlags().Bool("slave", false, "run in slave mode")
+	// RootCmd.PersistentFlags().Int("port", 3111,
+	// 	"the port to use for master/save operations")
+	// RootCmd.PersistentFlags().String("key", "", "AWS Access ID.")
+	// RootCmd.PersistentFlags().String("secret", "", "AWS secret token")
 }
 
 func initConfig() {

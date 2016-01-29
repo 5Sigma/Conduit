@@ -24,13 +24,9 @@ import (
 // serverCmd represents the server command
 var serverCmd = &cobra.Command{
 	Use:   "server",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Run the conduit message server.",
+	Long: `Run the conduit message server. To manage the server use the server sub
+commands. For help run 'conduit help server'.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		err := server.Start(viper.GetString("queue.host"))
 		fmt.Println("Could not start server:", err)

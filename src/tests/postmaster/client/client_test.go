@@ -12,9 +12,9 @@ var pmClient client.Client
 var mb *mailbox.Mailbox
 
 func TestMain(m *testing.M) {
-	mailbox.OpenDB()
+	mailbox.OpenMemDB()
 	mailbox.CreateDB()
-	mb, _ = mailbox.Create()
+	mb, _ = mailbox.Create("mb")
 	pmClient = client.Client{
 		Host:    "localhost:4111",
 		Mailbox: mb.Id,
@@ -23,7 +23,6 @@ func TestMain(m *testing.M) {
 	retCode := m.Run()
 
 	mailbox.CloseDB()
-	os.Remove("mailboxes.db")
 	os.Exit(retCode)
 }
 
@@ -39,9 +38,9 @@ func TestClientGet(t *testing.T) {
 }
 
 func TestClientPut(t *testing.T) {
-	mb1, _ := mailbox.Create()
-	mb2, _ := mailbox.Create()
-	_, err := pmClient.Put([]string{mb1.Id, mb2.Id}, "PUT TEST")
+	mb1, _ := mailbox.Create("put1")
+	mb2, _ := mailbox.Create("put2")
+	_, err := pmClient.Put([]string{mb1.Id, mb2.Id}, "", "PUT TEST")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +52,7 @@ func TestClientPut(t *testing.T) {
 }
 
 func TestClientDelete(t *testing.T) {
-	mb, _ := mailbox.Create()
+	mb, _ := mailbox.Create("delete")
 	msg, _ := mb.PutMessage("TEST DELETE")
 	pmClient.Delete(msg.Id)
 	count, _ := mb.MessageCount()
@@ -63,7 +62,7 @@ func TestClientDelete(t *testing.T) {
 }
 
 func TestNoMessages(t *testing.T) {
-	mb, _ = mailbox.Create()
+	mb, _ = mailbox.Create("empty")
 	pmClient.Mailbox = mb.Id
 	resp, err := pmClient.Get()
 	if err != nil {
