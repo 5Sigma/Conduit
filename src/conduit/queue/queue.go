@@ -2,26 +2,21 @@ package queue
 
 import (
 	"encoding/json"
-	"github.com/spf13/viper"
+	"fmt"
+	"postmaster/client"
 )
 
-func GetQueue() Queue {
-	if viper.GetString("queue.service") == "sqs" {
-		return &SQSQueue{}
-	}
-
-	if viper.GetString("queue.service") == "conduit" {
-		return &ConduitQueue{}
-	}
-
-	return nil
+type Queue struct {
+	Client client.Client
 }
 
-type ScriptCommand struct {
-	RemoteScriptUrl string   `json: "url"`
-	RemoteAssets    []string `json: "assets"`
-	ScriptBody      []byte   `json: "body"`
-	Receipt         string   `json: "receipt"`
+func New(host string, mailbox string) Queue {
+	return Queue{
+		Client: client.Client{
+			Host:    host,
+			Mailbox: mailbox,
+		},
+	}
 }
 
 func (cmd *ScriptCommand) ToJson() string {
@@ -29,8 +24,32 @@ func (cmd *ScriptCommand) ToJson() string {
 	return string(bytes)
 }
 
-type Queue interface {
-	Get() (*ScriptCommand, error)
-	Put(mailbox string, cmd *ScriptCommand) error
-	Delete(cmd *ScriptCommand) error
+func (q *Queue) getMailboxUrl() string {
+	return fmt.Sprintf("http://%s/get", q.Client.Host)
+}
+
+func (q *Queue) Get() (*ScriptCommand, error) {
+
+	resp, err := q.Client.Get()
+	if err != nil {
+		return nil, err
+	}
+	script := &ScriptCommand{
+		ScriptBody: resp.Body,
+		Receipt:    resp.Message,
+	}
+	return script, nil
+}
+
+func (q *Queue) Put(mailbox string, cmd *ScriptCommand) error {
+	return nil
+}
+
+func (q *Queue) Delete(cmd *ScriptCommand) error {
+	return nil
+}
+
+type ScriptCommand struct {
+	ScriptBody string `json: "body"`
+	Receipt    string `json: "receipt"`
 }

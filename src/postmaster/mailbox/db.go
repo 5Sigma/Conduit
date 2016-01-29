@@ -1,15 +1,15 @@
 package mailbox
 
 import (
+	"fmt"
 	"github.com/cznic/ql"
+	"os"
 )
 
+var DB *ql.DB
+
 func CreateDB() error {
-	db, err := OpenDB()
-	if err != nil {
-		return err
-	}
-	_, _, err = db.Run(ql.NewRWCtx(), `
+	_, _, err := DB.Run(ql.NewRWCtx(), `
 			BEGIN TRANSACTION;
 			CREATE TABLE message (
 				id string,
@@ -20,13 +20,32 @@ func CreateDB() error {
 				lastReceivedAt time
 			);
 			CREATE TABLE mailbox (
-				id string
+				id string,
+				completedMessages int,
+				createdAt time,
+				lastCompletedAt time,
+				lastCheckedInAt time
+			);
+			CREATE TABLE tokens (
+				mailboxId string,
+				token string,
+				secret string,
+				canSend bool
 			);
 			COMMIT;`)
-	db.Close()
 	return err
 }
 
-func OpenDB() (*ql.DB, error) {
-	return ql.OpenFile("mailboxes.db", &ql.Options{CanCreate: true})
+func init() {
+	var err error
+	DB, err = ql.OpenFile("mailboxes.db", &ql.Options{CanCreate: true})
+	if err != nil {
+		fmt.Println("Could not open mailbox database.")
+		os.Exit(-1)
+	}
+}
+
+func CloseDB() error {
+	err := DB.Close()
+	return err
 }

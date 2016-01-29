@@ -15,9 +15,10 @@
 package cmd
 
 import (
-	"conduit/log"
+	"fmt"
 	"github.com/spf13/cobra"
-	"postmaster"
+	"github.com/spf13/viper"
+	"postmaster/server"
 )
 
 // serverCmd represents the server command
@@ -31,8 +32,8 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		log.Info("Starting")
-		postmaster.Start(":8080")
+		err := server.Start(viper.GetString("queue.host"))
+		fmt.Println("Could not start server:", err)
 	},
 }
 

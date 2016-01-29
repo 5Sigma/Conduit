@@ -11,40 +11,30 @@ type Mailbox struct {
 }
 
 func (mb *Mailbox) PutMessage(body string) (*Message, error) {
-	id, _ := uuid.NewV4()
+	id, err := uuid.NewV4()
+	if err != nil {
+		return nil, err
+	}
 	msg := &Message{
 		Id:        id.String(),
 		Body:      body,
 		MailboxId: mb.Id,
 		CreatedAt: time.Now(),
 	}
-	db, err := OpenDB()
-	if err != nil {
-		return nil, err
-	}
-	_, _, err = db.Run(ql.NewRWCtx(), `
+	_, _, err = DB.Run(ql.NewRWCtx(), `
 			BEGIN TRANSACTION;
 			INSERT INTO message (
-				id, receiveCount, body, mailbox
+				id, receiveCount, body, mailbox, createdAt
 			) VALUES (
-				$1, $2, $3, $4
+				$1, $2, $3, $4, $5
 			);
 			COMMIT;
-		`, msg.Id, msg.ReceiveCount, msg.Body, msg.MailboxId)
-	db.Close()
+		`, msg.Id, msg.ReceiveCount, msg.Body, msg.MailboxId, time.Now())
 	return msg, err
 }
 
 func (mb *Mailbox) GetMessage() (*Message, error) {
-	db, err := OpenDB()
-	if db != nil {
-		defer db.Close()
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	rss, _, err := db.Run(ql.NewRWCtx(), `
+	rss, _, err := DB.Run(ql.NewRWCtx(), `
 		SELECT id, receiveCount, body, mailbox, createdAt
 		FROM message
 		WHERE mailbox == $1
@@ -76,7 +66,7 @@ func (mb *Mailbox) GetMessage() (*Message, error) {
 
 	msg.ReceiveCount++
 
-	_, _, err = db.Run(ql.NewRWCtx(), `
+	_, _, err = DB.Run(ql.NewRWCtx(), `
 		BEGIN TRANSACTION;
 		UPDATE message
 		SET receiveCount = $1
@@ -89,12 +79,18 @@ func (mb *Mailbox) GetMessage() (*Message, error) {
 	return &msg, err
 }
 
+func DeleteMessage(msgId string) error {
+	_, _, err := DB.Run(ql.NewRWCtx(), `
+	BEGIN TRANSACTION;
+	DELETE FROM message
+	WHERE id == $1;
+	COMMIT;
+	`, msgId)
+	return err
+}
+
 func (mb *Mailbox) MessageCount() (int64, error) {
-	db, err := OpenDB()
-	if db != nil {
-		defer db.Close()
-	}
-	rss, _, err := db.Run(ql.NewRWCtx(), `
+	rss, _, err := DB.Run(ql.NewRWCtx(), `
 		SELECT count()
 		FROM message
 		WHERE mailbox == $1
@@ -111,16 +107,12 @@ func (mb *Mailbox) MessageCount() (int64, error) {
 }
 
 func Create() (*Mailbox, error) {
-	id, _ := uuid.NewV4()
-	mb := &Mailbox{Id: id.String()}
-	db, err := OpenDB()
-	if db != nil {
-		defer db.Close()
-	}
+	id, err := uuid.NewV4()
 	if err != nil {
 		return nil, err
 	}
-	_, _, err = db.Run(ql.NewRWCtx(), `
+	mb := &Mailbox{Id: id.String()}
+	_, _, err = DB.Run(ql.NewRWCtx(), `
 		BEGIN TRANSACTION;
 		INSERT INTO mailbox (
 			id
@@ -128,21 +120,28 @@ func Create() (*Mailbox, error) {
 			$1
 		);
 		COMMIT
-		`, mb.Id)
+		`, id.String())
 	if err != nil {
 		return nil, err
 	}
 	return mb, nil
 }
 
-func All() ([]Mailbox, error) {
-	var mbxs []Mailbox
-	db, err := OpenDB()
-	defer db.Close()
+func (mb *Mailbox) Stats() (*MailboxStats, error) {
+	count, err := mb.MessageCount()
 	if err != nil {
 		return nil, err
 	}
-	rss, _, err := db.Run(ql.NewRWCtx(), `
+	stats := &MailboxStats{
+		MailboxId:       mb.Id,
+		PendingMessages: count,
+	}
+	return stats, nil
+}
+
+func All() ([]Mailbox, error) {
+	var mbxs []Mailbox
+	rss, _, err := DB.Run(ql.NewRWCtx(), `
 		SELECT id FROM mailbox`)
 	if err != nil {
 		return nil, err
@@ -159,14 +158,7 @@ func All() ([]Mailbox, error) {
 
 func Find(id string) (*Mailbox, error) {
 	var mbx *Mailbox
-	db, err := OpenDB()
-	if db != nil {
-		defer db.Close()
-	}
-	if err != nil {
-		return nil, err
-	}
-	rss, _, err := db.Run(ql.NewRWCtx(),
+	rss, _, err := DB.Run(ql.NewRWCtx(),
 		` SELECT id FROM mailbox WHERE id==$1`, id)
 	if err != nil {
 		return nil, err
@@ -178,4 +170,9 @@ func Find(id string) (*Mailbox, error) {
 		return false, nil
 	})
 	return mbx, nil
+}
+
+type MailboxStats struct {
+	MailboxId       string
+	PendingMessages int64
 }

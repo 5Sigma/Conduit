@@ -15,10 +15,9 @@
 package cmd
 
 import (
-	"conduit/engine"
+	// "conduit/engine"
 	"conduit/log"
 	"conduit/queue"
-	"conduit/storage"
 	"github.com/spf13/cobra"
 )
 
@@ -33,24 +32,24 @@ command to be delivered to it for processing.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Info("Starting...")
 		q := queue.GetQueue()
-		mgr := storage.GetStorage()
 		for {
-			cmd, err := q.Get()
+			script, err := q.Get()
 			if err != nil {
 				log.Error(err.Error())
 			}
-			if cmd != nil {
-				scriptBody, err := mgr.GetScript(cmd.RemoteScriptUrl)
-				if err != nil {
-					log.Error(err.Error())
-				} else {
-					err := engine.Execute(scriptBody)
-					if err != nil {
-						log.Error(err.Error())
-					} else {
-						q.Delete(cmd)
-					}
-				}
+			if script != nil {
+				log.Info(string(script.ScriptBody))
+				// scriptBody, err := mgr.GetScript(cmd.RemoteScriptUrl)
+				// if err != nil {
+				// 	log.Error(err.Error())
+				// } else {
+				// 	err := engine.Execute(scriptBody)
+				// 	if err != nil {
+				// 		log.Error(err.Error())
+				// 	} else {
+				// 		q.Delete(cmd)
+				// 	}
+				// }
 			}
 		}
 	},
