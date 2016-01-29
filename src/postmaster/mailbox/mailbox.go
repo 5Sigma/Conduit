@@ -89,6 +89,17 @@ func DeleteMessage(msgId string) error {
 	return err
 }
 
+func (mb *Mailbox) Purge() (int64, error) {
+	ctx := ql.NewRWCtx()
+	_, _, err := DB.Run(ctx, `
+	BEGIN TRANSACTION;
+	DELETE FROM message
+	WHERE mailbox == $1;
+	COMMIT;
+	`, mb.Id)
+	return ctx.RowsAffected, err
+}
+
 func (mb *Mailbox) MessageCount() (int64, error) {
 	rss, _, err := DB.Run(ql.NewRWCtx(), `
 		SELECT count()

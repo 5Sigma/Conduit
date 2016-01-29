@@ -14,8 +14,8 @@ try {
   //$request.download('http://upgrades.quikserve.com.s3.amazonaws.com/Conduit4/conduit.jar', 'conduit.jar');
   // console.log($request.get("http://www.google.com"));
   // $system.kill("TextEdit");
-  while (true) {}
   // $system.execute("echo", []);
+  console.log("test");
 } catch(err) {
   throw(new Error(err));
 } finally {

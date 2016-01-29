@@ -34,6 +34,9 @@ func (q *Queue) Get() (*ScriptCommand, error) {
 	if err != nil {
 		return nil, err
 	}
+	if resp.IsEmpty() {
+		return nil, nil
+	}
 	script := &ScriptCommand{
 		ScriptBody: resp.Body,
 		Receipt:    resp.Message,
@@ -41,12 +44,14 @@ func (q *Queue) Get() (*ScriptCommand, error) {
 	return script, nil
 }
 
-func (q *Queue) Put(mailbox string, cmd *ScriptCommand) error {
-	return nil
+func (q *Queue) Put(mailboxes []string, cmd *ScriptCommand) error {
+	_, err := q.Client.Put(mailboxes, cmd.ScriptBody)
+	return err
 }
 
 func (q *Queue) Delete(cmd *ScriptCommand) error {
-	return nil
+	_, err := q.Client.Delete(cmd.Receipt)
+	return err
 }
 
 type ScriptCommand struct {

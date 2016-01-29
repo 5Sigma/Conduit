@@ -14,6 +14,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	mailbox.OpenDB()
 	mailbox.CreateDB()
 
 	go server.Start(":4111")

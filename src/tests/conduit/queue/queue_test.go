@@ -13,6 +13,7 @@ var q queue.Queue
 var mb *mailbox.Mailbox
 
 func TestMain(m *testing.M) {
+	mailbox.OpenDB()
 	mailbox.CreateDB()
 	var err error
 	mb, err = mailbox.Create()

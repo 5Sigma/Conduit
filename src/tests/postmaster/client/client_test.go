@@ -12,6 +12,7 @@ var pmClient client.Client
 var mb *mailbox.Mailbox
 
 func TestMain(m *testing.M) {
+	mailbox.OpenDB()
 	mailbox.CreateDB()
 	mb, _ = mailbox.Create()
 	pmClient = client.Client{

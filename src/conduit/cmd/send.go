@@ -1,10 +1,11 @@
 package cmd
 
 import (
+	"conduit/log"
 	"conduit/queue"
-	"conduit/storage"
-	"fmt"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"io/ioutil"
 )
 
 // sendCmd represents the send command
@@ -15,22 +16,18 @@ var sendCmd = &cobra.Command{
 javascript file or a zip file containing a javascript file and other arbitrary
 files.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		q := queue.GetQueue()
+		q := queue.New(viper.GetString("queue.host"), viper.GetString("mailbox"))
 		filename := args[0]
 		client := args[1]
-		storage := storage.GetStorage()
-		err := storage.PutScript(filename)
+		data, err := ioutil.ReadFile(filename)
 		if err != nil {
-			fmt.Println(err)
+			log.Fatal(err.Error())
 		}
-		script := &queue.ScriptCommand{
-			RemoteScriptUrl: filename,
-			RemoteAssets:    []string{},
-		}
-		err = q.Put(client, script)
+		err = q.Put([]string{client}, &queue.ScriptCommand{ScriptBody: string(data)})
 		if err != nil {
-			fmt.Println(err)
+			log.Fatal(err.Error())
 		}
+		log.Infof("Script deployed to %s (%d)", client, len(data))
 	},
 }
 

@@ -47,6 +47,9 @@ func (h *EndPointHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func Start(addr string) error {
+	if mailbox.DB == nil {
+		mailbox.OpenDB()
+	}
 	if _, err := os.Stat("mailboxes.db"); os.IsNotExist(err) {
 		err := mailbox.CreateDB()
 		if err != nil {
@@ -91,6 +94,7 @@ func readRequest(r *http.Request, req interface{}) error {
 }
 
 func getMessage(w http.ResponseWriter, r *http.Request) {
+	// time.Sleep(500 * time.Millisecond)
 	var request api.GetMessageRequest
 	err := readRequest(r, &request)
 	if err != nil {
@@ -111,9 +115,18 @@ func getMessage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		e := &api.ApiError{Error: err.Error()}
 		writeResponse(&w, e)
-	} else {
-		writeResponse(&w, msg)
 	}
+	if msg == nil {
+		writeResponse(&w, nil)
+		return
+	}
+	response := api.GetMessageResponse{
+		Message:      msg.Id,
+		Body:         msg.Body,
+		CreatedAt:    msg.CreatedAt,
+		ReceiveCount: msg.ReceiveCount,
+	}
+	writeResponse(&w, response)
 }
 
 func sendError(w http.ResponseWriter, msg string) {

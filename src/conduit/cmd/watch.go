@@ -15,13 +15,17 @@
 package cmd
 
 import (
-	// "conduit/engine"
+	"conduit/engine"
 	"conduit/log"
 	"conduit/queue"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"math"
+	"time"
 )
 
 var s string
+var errorCount int
 
 // watchCmd represents the watch command
 var watchCmd = &cobra.Command{
@@ -31,25 +35,35 @@ var watchCmd = &cobra.Command{
 command to be delivered to it for processing.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Info("Starting...")
-		q := queue.GetQueue()
+
+		q := queue.New(viper.GetString("queue.host"), viper.GetString("mailbox"))
+
 		for {
 			script, err := q.Get()
 			if err != nil {
-				log.Error(err.Error())
+				log.Warn(err.Error())
+				log.Error("Could not poll for messages.")
+				if errorCount < 15 {
+					errorCount++
+				}
+				time.Sleep(time.Duration(math.Pow(float64(errorCount), 2)) * time.Second)
+				continue
 			}
+			errorCount = 0
 			if script != nil {
-				log.Info(string(script.ScriptBody))
-				// scriptBody, err := mgr.GetScript(cmd.RemoteScriptUrl)
-				// if err != nil {
-				// 	log.Error(err.Error())
-				// } else {
-				// 	err := engine.Execute(scriptBody)
-				// 	if err != nil {
-				// 		log.Error(err.Error())
-				// 	} else {
-				// 		q.Delete(cmd)
-				// 	}
-				// }
+				err := engine.Execute(script.ScriptBody)
+				if err != nil {
+					log.Error("Error executing script." + script.Receipt)
+					log.Debug(err.Error())
+				}
+				// log.Info("Script exeucted: " + script.Receipt)
+				err = q.Delete(script)
+				if err != nil {
+					log.Error("Could not confirm script.")
+					log.Debug(err.Error())
+				} else {
+					// log.Info("Script confirmed: " + script.Receipt)
+				}
 			}
 		}
 	},
@@ -57,15 +71,4 @@ command to be delivered to it for processing.`,
 
 func init() {
 	RootCmd.AddCommand(watchCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// watchCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// watchCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-
 }

@@ -36,12 +36,22 @@ func CreateDB() error {
 	return err
 }
 
-func init() {
+func OpenDB() {
 	var err error
+	shouldCreate := false
+	if _, err := os.Stat("mailboxes.db"); os.IsNotExist(err) {
+		shouldCreate = true
+	}
 	DB, err = ql.OpenFile("mailboxes.db", &ql.Options{CanCreate: true})
 	if err != nil {
 		fmt.Println("Could not open mailbox database.")
 		os.Exit(-1)
+	}
+	if shouldCreate {
+		err := CreateDB()
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 
