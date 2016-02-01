@@ -1,13 +1,22 @@
 package mailbox
 
 import (
+	"os"
 	"postmaster/mailbox"
 	"testing"
 )
 
-func TestSearch(t *testing.T) {
+func TestMain(m *testing.M) {
 	mailbox.OpenMemDB()
 	mailbox.CreateDB()
+
+	retCode := m.Run()
+
+	mailbox.CloseDB()
+	os.Exit(retCode)
+}
+
+func TestSearch(t *testing.T) {
 	_, err := mailbox.Create("org.Test")
 	if err != nil {
 		t.Fatal(err)

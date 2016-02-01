@@ -16,6 +16,7 @@ try {
   // $system.kill("TextEdit");
   // $system.execute("echo", []);
   console.log("test");
+  $file.write("~/conduit-test.txt", "testing conduit")
 } catch(err) {
   throw(new Error(err));
 } finally {

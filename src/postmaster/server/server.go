@@ -1,6 +1,7 @@
 package server
 
 import (
+	"conduit/log"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,6 +15,10 @@ import (
 )
 
 var pollingChannels = make(map[string]chan *mailbox.Message)
+
+var EnableLongPolling = true
+
+var ThrottleDelay = 500 * time.Millisecond
 
 type EndPoint struct {
 	Method  string
@@ -64,6 +69,7 @@ func Start(addr string) error {
 	}
 	endpoints.Add("POST", `/get`, getMessage)
 	endpoints.Add("POST", "/put", putMessage)
+	endpoints.Add("POST", "/stats", systemStats)
 	endpoints.Add("POST", "/delete", deleteMessage)
 	http.Handle("/", &endpoints)
 	err := svr.ListenAndServe()
@@ -94,13 +100,16 @@ func readRequest(r *http.Request, req interface{}) error {
 }
 
 func getMessage(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("REQUESTING MESSAGE")
+	if !EnableLongPolling {
+		time.Sleep(ThrottleDelay)
+	}
 	var request api.GetMessageRequest
 	err := readRequest(r, &request)
 	if err != nil {
 		sendError(w, err.Error())
 		return
 	}
+	log.Infof("Message request from %s", request.Mailbox)
 
 	mb, err := mailbox.Find(request.Mailbox)
 	if err != nil {
@@ -113,16 +122,39 @@ func getMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !mailbox.TokenCanGet(request.Token, mb.Id) {
+		sendError(w, "Not allowed to get messages from this mailbox.")
+		return
+	}
+
 	msg, err := mb.GetMessage()
 	if err != nil {
 		e := &api.ApiError{Error: err.Error()}
 		writeResponse(&w, e)
 	}
-	if msg == nil {
+
+	if EnableLongPolling == true && msg == nil {
 		pollingChannels[mb.Id] = make(chan *mailbox.Message)
-		msg = <-pollingChannels[mb.Id]
+		timeout := make(chan bool, 1)
+		go func() {
+			time.Sleep(10 * time.Second)
+			timeout <- true
+		}()
+		select {
+		case m := <-pollingChannels[mb.Id]:
+			msg = m
+		case <-timeout:
+			writeResponse(&w, &api.GetMessageResponse{})
+			delete(pollingChannels, mb.Id)
+			return
+		}
+		delete(pollingChannels, mb.Id)
 	}
-	delete(pollingChannels, mb.Id)
+
+	if msg == nil {
+		writeResponse(&w, nil)
+		return
+	}
 
 	response := api.GetMessageResponse{
 		Message:      msg.Id,
@@ -130,6 +162,8 @@ func getMessage(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:    msg.CreatedAt,
 		ReceiveCount: msg.ReceiveCount,
 	}
+
+	log.Infof("Delivering message %s", response.Message)
 
 	writeResponse(&w, response)
 }
@@ -165,7 +199,7 @@ func putMessage(w http.ResponseWriter, r *http.Request) {
 			sendError(w, err.Error())
 		}
 		if mb == nil {
-			sendError(w, fmt.Sprintf("Mailbox not found. (%s)", mbId))
+			sendError(w, fmt.Sprintf("Mailbox not found (%s)", mbId))
 			return
 		}
 		mailboxes = append(mailboxes, *mb)
@@ -178,10 +212,15 @@ func putMessage(w http.ResponseWriter, r *http.Request) {
 
 	mbList := []string{}
 	for _, mb := range mailboxes {
+		if !mailbox.TokenCanPut(request.Token, mb.Id) {
+			sendError(w, "Not allowed to send messages")
+			return
+		}
 		msg, err := mb.PutMessage(request.Body)
 		mbList = append(mbList, mb.Id)
 		if err != nil {
 			sendError(w, err.Error())
+			return
 		}
 		if pollChannel, ok := pollingChannels[mb.Id]; ok {
 			pollChannel <- msg
@@ -191,6 +230,7 @@ func putMessage(w http.ResponseWriter, r *http.Request) {
 		MessageSize: r.ContentLength,
 		Mailboxes:   mbList,
 	}
+	log.Infof("Message received for %d mailboxes", len(mbList))
 	writeResponse(&w, resp)
 }
 
@@ -198,7 +238,7 @@ func deleteMessage(w http.ResponseWriter, r *http.Request) {
 	var request api.DeleteMessageRequest
 	err := readRequest(r, &request)
 	if err != nil {
-		sendError(w, "Could not parse json request.")
+		sendError(w, "Could not parse json request")
 		return
 	}
 	err = mailbox.DeleteMessage(request.Message)
@@ -207,5 +247,36 @@ func deleteMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp := api.DeleteMessageResponse{Message: request.Message}
+	log.Infof("Message %s deleted", request.Message)
 	writeResponse(&w, resp)
+}
+
+// systemStats is json endpoint used to retrieve overall statistics. The token
+// used to request the endpoint must have write priviledges.
+func systemStats(w http.ResponseWriter, r *http.Request) {
+	var request api.SimpleRequest
+	err := readRequest(r, &request)
+	if err != nil {
+		sendError(w, "Could not get stats")
+		return
+	}
+
+	if !mailbox.TokenCanAdmin(request.Token) {
+		sendError(w, "Not allowed to get statistics")
+		return
+	}
+
+	stats, err := mailbox.Stats()
+	if err != nil {
+		sendError(w, err.Error())
+		return
+	}
+
+	response := api.SystemStatsResponse{
+		TotalMailboxes:   stats.MailboxCount,
+		PendingMessages:  stats.PendingMessages,
+		ConnectedClients: int64(len(pollingChannels)),
+	}
+
+	writeResponse(&w, response)
 }

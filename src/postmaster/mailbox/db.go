@@ -26,11 +26,11 @@ func CreateDB() error {
 				lastCompletedAt time,
 				lastCheckedInAt time
 			);
-			CREATE TABLE tokens (
-				mailboxId string,
+			CREATE TABLE accessToken (
+				mailbox string,
 				token string,
-				secret string,
-				canSend bool
+				name string,
+				fullAccess bool
 			);
 			COMMIT;`)
 	return err

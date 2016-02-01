@@ -1,6 +1,7 @@
 package mailbox
 
 import (
+	"errors"
 	"github.com/cznic/ql"
 	"github.com/nu7hatch/gouuid"
 	"strings"
@@ -119,8 +120,16 @@ func (mb *Mailbox) MessageCount() (int64, error) {
 }
 
 func Create(id string) (*Mailbox, error) {
-	mb := &Mailbox{Id: strings.ToLower(id)}
-	_, _, err := DB.Run(ql.NewRWCtx(), `
+	var mb *Mailbox
+	mb, err := Find(id)
+	if err != nil {
+		return nil, err
+	}
+	if mb != nil {
+		return mb, errors.New("Mailbox already exists")
+	}
+	mb = &Mailbox{Id: strings.ToLower(id)}
+	_, _, err = DB.Run(ql.NewRWCtx(), `
 		BEGIN TRANSACTION;
 		INSERT INTO mailbox (
 			id
@@ -133,18 +142,6 @@ func Create(id string) (*Mailbox, error) {
 		return nil, err
 	}
 	return mb, nil
-}
-
-func (mb *Mailbox) Stats() (*MailboxStats, error) {
-	count, err := mb.MessageCount()
-	if err != nil {
-		return nil, err
-	}
-	stats := &MailboxStats{
-		MailboxId:       mb.Id,
-		PendingMessages: count,
-	}
-	return stats, nil
 }
 
 func All() ([]Mailbox, error) {
@@ -196,7 +193,26 @@ func Search(rawPattern string) ([]Mailbox, error) {
 	return mbxs, nil
 }
 
-type MailboxStats struct {
-	MailboxId       string
+type SystemStats struct {
+	MailboxCount    int64
 	PendingMessages int64
+}
+
+func Stats() (*SystemStats, error) {
+	rss, _, err := DB.Run(ql.NewRWCtx(), `
+		SELECT count(*) FROM message;
+		SELECT count(*) FROM mailbox;`)
+	if err != nil {
+		return nil, err
+	}
+	stats := &SystemStats{}
+	rss[0].Do(false, func(data []interface{}) (bool, error) {
+		stats.PendingMessages = data[0].(int64)
+		return false, nil
+	})
+	rss[0].Do(false, func(data []interface{}) (bool, error) {
+		stats.MailboxCount = data[0].(int64)
+		return false, nil
+	})
+	return stats, nil
 }

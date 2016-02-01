@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"conduit/log"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -16,6 +17,10 @@ func TestMain(m *testing.M) {
 	mailbox.OpenMemDB()
 	mailbox.CreateDB()
 
+	server.EnableLongPolling = false
+	server.ThrottleDelay = 0
+	log.LogStdOut = false
+
 	go server.Start(":4111")
 
 	retCode := m.Run()
@@ -24,7 +29,8 @@ func TestMain(m *testing.M) {
 	os.Exit(retCode)
 }
 
-func doRequest(t *testing.T, req interface{}, response interface{}, url string) int {
+func doRequest(t *testing.T, req interface{}, response interface{},
+	url string) int {
 	requestData, _ := json.Marshal(&req)
 	resp, err := http.Post("http://localhost:4111/"+url, "application/json",
 		bytes.NewReader(requestData))
@@ -32,7 +38,8 @@ func doRequest(t *testing.T, req interface{}, response interface{}, url string) 
 		t.Fatal(err)
 	}
 	responseData, err := ioutil.ReadAll(resp.Body)
-	t.Logf("\nUrl: %s\nRequest: %s\nResponse:%s\n", url, string(requestData), string(responseData))
+	t.Logf("\nUrl: %s\nRequest: %s\nResponse:%s\n", url, string(requestData),
+		string(responseData))
 	json.Unmarshal(responseData, response)
 	return resp.StatusCode
 }
@@ -43,7 +50,8 @@ func TestGet(t *testing.T) {
 		t.Fatal(err)
 	}
 	mb.PutMessage("TEST")
-	req := api.GetMessageRequest{Mailbox: mb.Id}
+	token, _ := mailbox.CreateMailboxToken(mb.Id)
+	req := api.GetMessageRequest{Mailbox: mb.Id, Token: token.Token}
 	var resp api.GetMessageResponse
 	doRequest(t, req, &resp, "get")
 	if resp.Body != "TEST" {
@@ -58,10 +66,26 @@ func TestGet(t *testing.T) {
 	}
 }
 
+func TestGetBadToken(t *testing.T) {
+	mb, err := mailbox.Create("get.badtoken")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mb.PutMessage("TEST")
+	req := api.GetMessageRequest{Mailbox: mb.Id, Token: "BADTOKEN"}
+	var resp api.GetMessageResponse
+	code := doRequest(t, req, &resp, "get")
+	if code == 200 {
+		t.Fatal("Bad token should respond with an error")
+	}
+}
+
 func TestPut(t *testing.T) {
 	mb1, _ := mailbox.Create("put1")
 	mb2, _ := mailbox.Create("put2")
+	token, _ := mailbox.CreateAPIToken("test")
 	req := api.PutMessageRequest{
+		Token: token.Token,
 		Mailboxes: []string{
 			mb1.Id,
 			mb2.Id,
@@ -103,9 +127,25 @@ func TestPut(t *testing.T) {
 	}
 }
 
+func TestPutBadToken(t *testing.T) {
+	mb, _ := mailbox.Create("puttest.badtoken")
+	token, _ := mailbox.CreateMailboxToken(mb.Id)
+	req := api.PutMessageRequest{
+		Mailboxes: []string{mb.Id},
+		Body:      "TEST MESSAGE",
+		Token:     token.Token,
+	}
+	var resp api.PutMessageResponse
+	code := doRequest(t, req, &resp, "put")
+	if code == 200 {
+		t.Fatal("Bad token should return error")
+	}
+}
+
 func TestPutByPattern(t *testing.T) {
 	mb, _ := mailbox.Create("PATTERN")
-	req := api.PutMessageRequest{Pattern: "P*"}
+	token, _ := mailbox.CreateAPIToken("test")
+	req := api.PutMessageRequest{Pattern: "P*", Token: token.Token}
 	var resp api.PutMessageResponse
 	code := doRequest(t, req, &resp, "put")
 	count, err := mb.MessageCount()
@@ -155,5 +195,18 @@ func TestBadMailbox(t *testing.T) {
 	code := doRequest(t, req, &resp, "get")
 	if code != 400 {
 		t.Fatal("Should of responded with 400 but it responded with", code)
+	}
+}
+func TestSystemStats(t *testing.T) {
+	mailbox.Create("stats.systemtest")
+	token, err := mailbox.CreateAPIToken("systemstatstoken")
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := api.SimpleRequest{Token: token.Token}
+	var resp api.SystemStatsResponse
+	code := doRequest(t, req, &resp, "stats")
+	if code != 200 {
+		t.Fatal("Server responded with", code)
 	}
 }

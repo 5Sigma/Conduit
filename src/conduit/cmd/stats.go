@@ -1,37 +1,33 @@
 package cmd
 
 import (
-	"fmt"
+	"conduit/log"
+	"conduit/queue"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // statsCmd represents the stats command
 var statsCmd = &cobra.Command{
 	Use:   "stats",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Retrieve system statistics from the server",
+	Long: `Gathers system statistics such as connected clients, and pending
+message count from the remote server.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// TODO: Work your own magic here
-		fmt.Println("stats called")
+		q := queue.New(viper.GetString("queue.host"), viper.GetString("mailbox"),
+			viper.GetString("access_key"))
+		stats, err := q.SystemStats()
+		if err != nil {
+			log.Debug(err.Error())
+			log.Fatal("Could not retrieve statistics")
+		}
+		log.Stats("Host", q.Client.Host)
+		log.Stats("Pending messages", stats.PendingMessages)
+		log.Stats("Connected clients", stats.ConnectedClients)
+		log.Stats("Total mailboxes", stats.TotalMailboxes)
 	},
 }
 
 func init() {
 	RootCmd.AddCommand(statsCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// statsCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// statsCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-
 }

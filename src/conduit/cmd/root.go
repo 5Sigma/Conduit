@@ -15,20 +15,20 @@
 package cmd
 
 import (
+	"conduit/log"
 	"fmt"
-	"os"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"os"
 )
 
 var cfgFile string
 
 var RootCmd = &cobra.Command{
 	Use:   "conduit",
-	Short: "Remote control and management",
-	Long: `Conduit uses Amazon Simple Queue Service to send command and control
-scripts to clients.`,
+	Short: "Conduit v 1.0",
+	Long: `Conduit is a client/server package that allows command and management
+of resources using JavaScript based automation scripts.`,
 }
 
 func Execute() {
@@ -40,13 +40,10 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.conduit.yaml)")
-	RootCmd.PersistentFlags().BoolP("debug", "d", false, "Print debug information")
-	// RootCmd.PersistentFlags().Bool("slave", false, "run in slave mode")
-	// RootCmd.PersistentFlags().Int("port", 3111,
-	// 	"the port to use for master/save operations")
-	// RootCmd.PersistentFlags().String("key", "", "AWS Access ID.")
-	// RootCmd.PersistentFlags().String("secret", "", "AWS secret token")
+	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "",
+		"config file (default is $HOME/.conduit.yaml)")
+	RootCmd.PersistentFlags().BoolVarP(&log.ShowDebug, "debug", "d", false,
+		"Print debug information")
 }
 
 func initConfig() {
@@ -62,5 +59,4 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Println("Using config file:", viper.ConfigFileUsed())
 	}
-	viper.BindPFlag("port", RootCmd.PersistentFlags().Lookup("port"))
 }

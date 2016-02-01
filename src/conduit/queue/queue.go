@@ -3,6 +3,7 @@ package queue
 import (
 	"encoding/json"
 	"fmt"
+	"postmaster/api"
 	"postmaster/client"
 )
 
@@ -10,11 +11,12 @@ type Queue struct {
 	Client client.Client
 }
 
-func New(host string, mailbox string) Queue {
+func New(host string, mailbox string, token string) Queue {
 	return Queue{
 		Client: client.Client{
 			Host:    host,
 			Mailbox: mailbox,
+			Token:   token,
 		},
 	}
 }
@@ -55,6 +57,10 @@ func (q *Queue) Put(mailboxes []string, pattern string, cmd *ScriptCommand) (int
 func (q *Queue) Delete(cmd *ScriptCommand) error {
 	_, err := q.Client.Delete(cmd.Receipt)
 	return err
+}
+
+func (q *Queue) SystemStats() (*api.SystemStatsResponse, error) {
+	return q.Client.Stats()
 }
 
 type ScriptCommand struct {

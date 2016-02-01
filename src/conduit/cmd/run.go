@@ -28,21 +28,21 @@ var s string
 var errorCount int
 
 // watchCmd represents the watch command
-var watchCmd = &cobra.Command{
-	Use:   "watch",
+var runCmd = &cobra.Command{
+	Use:   "run",
 	Short: "Begin watching for commands.",
 	Long: `Start processing the command queue. Conduit will run and wait for a
 command to be delivered to it for processing.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Info("Starting...")
 
-		q := queue.New(viper.GetString("queue.host"), viper.GetString("mailbox"))
+		q := queue.New(viper.GetString("queue.host"), viper.GetString("mailbox"),
+			viper.GetString("access_key"))
 
 		for {
 			script, err := q.Get()
 			if err != nil {
-				log.Warn(err.Error())
-				log.Error("Could not poll for messages.")
+				log.Error(err.Error())
 				if errorCount < 15 {
 					errorCount++
 				}
@@ -71,5 +71,5 @@ command to be delivered to it for processing.`,
 }
 
 func init() {
-	RootCmd.AddCommand(watchCmd)
+	RootCmd.AddCommand(runCmd)
 }

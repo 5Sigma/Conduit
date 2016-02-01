@@ -12,6 +12,7 @@ type PutMessageRequest struct {
 	Mailboxes []string `json:"mailboxes"`
 	Body      string   `json:"body"`
 	Pattern   string   `json:"pattern"`
+	Token     string   `json:"token"`
 }
 
 type PutMessageResponse struct {
@@ -41,8 +42,19 @@ func (r *GetMessageResponse) IsEmpty() bool {
 
 type DeleteMessageRequest struct {
 	Message string `json:"message"`
+	Token   string `json:"token"`
 }
 
 type DeleteMessageResponse struct {
 	Message string `json:"message"`
+}
+
+type SimpleRequest struct {
+	Token string `json:"token"`
+}
+
+type SystemStatsResponse struct {
+	TotalMailboxes   int64
+	PendingMessages  int64
+	ConnectedClients int64
 }

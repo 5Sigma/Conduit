@@ -20,42 +20,43 @@ import (
 	"postmaster/mailbox"
 )
 
-// registerCmd represents the register command
-var registerCmd = &cobra.Command{
-	Use:   "register [name]",
-	Short: "Register a new mailbox",
-	Long:  `This registers a new mailbox for the local server.`,
+// accessCmd represents the access command
+var accessCmd = &cobra.Command{
+	Use:   "access [name]",
+	Short: "Generate an administrative access key for a conduit server.",
+	Long: `This generates and returns a administrative API access key for the
+local Conduit server. This key gives full access to the Conduit API and should
+be used for administrative purposes in a Conduit client or by an external system
+that can manage the Conduit service.
+
+For audit purposes the access key can be given a name. If no name is specified a
+randomly generated identifier will be used.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) == 0 {
-			log.Fatal("No mailbox name specified")
-		}
 		mailbox.OpenDB()
-		mb, err := mailbox.Create(args[0])
+		var name string
+		if len(args) > 0 {
+			name = args[0]
+		}
+		token, err := mailbox.CreateAPIToken(name)
 		if err != nil {
 			log.Debug(err.Error())
-			log.Fatal("Could not create mailbox")
+			log.Fatal("Could not create access token.")
 		}
-		token, err := mailbox.CreateMailboxToken(mb.Id)
-		if err != nil {
-			log.Debug(err.Error())
-			log.Fatal("Could not create mailbox access token")
-		}
-		log.Infof("Mailbox created: %s", mb.Id)
-		log.Infof("Access key created: %s", token.Token)
+		log.Info("Access key created: " + token.Token)
 	},
 }
 
 func init() {
-	serverCmd.AddCommand(registerCmd)
+	serverCmd.AddCommand(accessCmd)
 
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	// registerCmd.PersistentFlags().String("foo", "", "A help for foo")
+	// accessCmd.PersistentFlags().String("foo", "", "A help for foo")
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	// registerCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// accessCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 
 }

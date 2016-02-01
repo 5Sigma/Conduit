@@ -16,7 +16,8 @@ var sendCmd = &cobra.Command{
 javascript file or a zip file containing a javascript file and other arbitrary
 files.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		q := queue.New(viper.GetString("queue.host"), viper.GetString("mailbox"))
+		q := queue.New(viper.GetString("queue.host"), viper.GetString("mailbox"),
+			viper.GetString("access_key"))
 		if len(args) == 0 {
 			log.Fatal("No script specified.")
 		}
