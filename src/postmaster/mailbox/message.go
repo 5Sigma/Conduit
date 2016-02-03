@@ -8,7 +8,9 @@ type Message struct {
 	Id             string
 	Body           string
 	ReceiveCount   int64
-	MailboxId      string
+	Mailbox        string
 	CreatedAt      time.Time
-	lastReceivedAt time.Time
+	LastReceivedAt time.Time
+	Deployment     string
+	Deleted        bool
 }

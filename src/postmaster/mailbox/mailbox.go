@@ -2,6 +2,7 @@ package mailbox
 
 import (
 	"errors"
+	"fmt"
 	"github.com/cznic/ql"
 	"github.com/nu7hatch/gouuid"
 	"strings"
@@ -9,53 +10,86 @@ import (
 )
 
 type Mailbox struct {
-	Id string
+	Id                string
+	DeliveredMessages int64
+	LastDelivery      time.Time
+	LastRequest       time.Time
 }
 
 func (mb *Mailbox) PutMessage(body string) (*Message, error) {
+	dep, err := CreateDeployment("", "SYSTEM", body)
+	if err != nil {
+		return nil, err
+	}
+	msg, err := mb.DeployMessage(dep.Id)
+	return msg, err
+}
+
+func (mb *Mailbox) DeployMessage(depId string) (*Message, error) {
+	deployment, err := FindDeployment(depId)
+	if err != nil {
+		return nil, err
+	}
+
+	if deployment == nil {
+		return nil, errors.New(fmt.Sprintf("Deployment %s not found", depId))
+	}
+
+	if deployment.Open == false {
+		return nil, errors.New("The deployment has been closed")
+	}
+
 	id, err := uuid.NewV4()
 	if err != nil {
 		return nil, err
 	}
+
 	msg := &Message{
-		Id:        id.String(),
-		Body:      body,
-		MailboxId: mb.Id,
-		CreatedAt: time.Now(),
+		Id:         id.String(),
+		Mailbox:    mb.Id,
+		CreatedAt:  time.Now(),
+		Deployment: deployment.Id,
+		Body:       deployment.MessageBody,
 	}
 	_, _, err = DB.Run(ql.NewRWCtx(), `
 			BEGIN TRANSACTION;
 			INSERT INTO message (
-				id, receiveCount, body, mailbox, createdAt
+				id, receiveCount, mailbox, createdAt, deployment, deleted
 			) VALUES (
-				$1, $2, $3, $4, $5
+				$1, $2, $3, $4, $5, false
 			);
+			UPDATE deployment
+			SET totalMessages = totalMessages + 1
+			WHERE id == $5;
 			COMMIT;
-		`, msg.Id, msg.ReceiveCount, msg.Body, msg.MailboxId, time.Now())
+		`, msg.Id, msg.ReceiveCount, msg.Mailbox, msg.CreatedAt,
+		deployment.Id)
 	return msg, err
 }
 
 func (mb *Mailbox) GetMessage() (*Message, error) {
 	rss, _, err := DB.Run(ql.NewRWCtx(), `
-		SELECT id, receiveCount, body, mailbox, createdAt
-		FROM message
-		WHERE mailbox == $1
+		SELECT  message.id, deployment.messageBody, message.mailbox,
+		message.deployment, message.receiveCount, message.lastReceivedAt,
+		message.createdAt, message.deleted
+		FROM message, deployment
+		WHERE 
+			message.mailbox == $1
+			AND message.deleted == false
+			AND deployment.id == message.deployment
 		LIMIT 1;
 		`, mb.Id)
-	var msg Message
+	if err != nil {
+		return nil, err
+	}
+	var msg *Message
 	if len(rss) > 0 {
 		r, _ := rss[0].FirstRow()
 		if r == nil {
 			return nil, nil
 		}
 		rss[0].Do(false, func(data []interface{}) (bool, error) {
-			msg = Message{
-				Id:           data[0].(string),
-				ReceiveCount: data[1].(int64),
-				Body:         data[2].(string),
-				MailboxId:    data[3].(string),
-				CreatedAt:    data[4].(time.Time),
-			}
+			msg = readMessageStruct(data)
 			return false, nil
 		})
 	} else {
@@ -78,13 +112,14 @@ func (mb *Mailbox) GetMessage() (*Message, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &msg, err
+	return msg, err
 }
 
 func DeleteMessage(msgId string) error {
 	_, _, err := DB.Run(ql.NewRWCtx(), `
 	BEGIN TRANSACTION;
-	DELETE FROM message
+	UPDATE message
+	SET deleted = true
 	WHERE id == $1;
 	COMMIT;
 	`, msgId)
@@ -106,7 +141,7 @@ func (mb *Mailbox) MessageCount() (int64, error) {
 	rss, _, err := DB.Run(ql.NewRWCtx(), `
 		SELECT count()
 		FROM message
-		WHERE mailbox == $1
+		WHERE mailbox == $1 AND deleted == false
 	`, mb.Id)
 	if err != nil {
 		return -1, err
@@ -128,7 +163,10 @@ func Create(id string) (*Mailbox, error) {
 	if mb != nil {
 		return mb, errors.New("Mailbox already exists")
 	}
-	mb = &Mailbox{Id: strings.ToLower(id)}
+	mb = &Mailbox{
+		Id:                strings.ToLower(id),
+		DeliveredMessages: 0,
+	}
 	_, _, err = DB.Run(ql.NewRWCtx(), `
 		BEGIN TRANSACTION;
 		INSERT INTO mailbox (
@@ -188,7 +226,7 @@ func Search(rawPattern string) ([]Mailbox, error) {
 	rss[0].Do(false, func(data []interface{}) (bool, error) {
 		mb := Mailbox{Id: data[0].(string)}
 		mbxs = append(mbxs, mb)
-		return false, nil
+		return true, nil
 	})
 	return mbxs, nil
 }
@@ -210,9 +248,48 @@ func Stats() (*SystemStats, error) {
 		stats.PendingMessages = data[0].(int64)
 		return false, nil
 	})
-	rss[0].Do(false, func(data []interface{}) (bool, error) {
+	rss[1].Do(false, func(data []interface{}) (bool, error) {
 		stats.MailboxCount = data[0].(int64)
 		return false, nil
 	})
 	return stats, nil
+}
+
+func FindMessage(msgId string) (*Message, error) {
+	rss, _, err := DB.Run(ql.NewRWCtx(), `
+		SELECT  message.id, deployment.messageBody, message.mailbox,
+		message.deployment, message.receiveCount, message.lastReceivedAt,
+		message.createdAt, message.deleted
+		FROM message, deployment
+		WHERE 
+			message.id == $1
+			AND message.deleted == false
+			AND deployment.id == message.deployment
+		LIMIT 1;
+	`, msgId)
+	if err != nil {
+		return nil, err
+	}
+	var message *Message
+	rss[0].Do(false, func(data []interface{}) (bool, error) {
+		message = readMessageStruct(data)
+		return false, nil
+	})
+	return message, nil
+}
+
+func readMessageStruct(data []interface{}) *Message {
+	message := &Message{
+		Id:           data[0].(string),
+		Body:         data[1].(string),
+		Mailbox:      data[2].(string),
+		Deployment:   data[3].(string),
+		ReceiveCount: data[4].(int64),
+		Deleted:      data[7].(bool),
+		CreatedAt:    data[6].(time.Time),
+	}
+	if data[5] != nil {
+		message.LastReceivedAt = data[5].(time.Time)
+	}
+	return message
 }

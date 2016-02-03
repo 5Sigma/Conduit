@@ -119,6 +119,9 @@ func TestPut(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if message1 == nil || message2 == nil {
+		t.Fatal("Message is nil")
+	}
 	if message1.Body != "TEST" {
 		t.Fatal("Incorrect message1 body", message1.Body)
 	}

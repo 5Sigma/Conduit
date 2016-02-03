@@ -1,6 +1,7 @@
 package client
 
 import (
+	"conduit/log"
 	"os"
 	"postmaster/client"
 	"postmaster/mailbox"
@@ -13,6 +14,7 @@ var mb *mailbox.Mailbox
 var token *mailbox.AccessToken
 
 func TestMain(m *testing.M) {
+	log.LogStdOut = false
 	// open database in memory for testing
 	mailbox.OpenMemDB()
 	mailbox.CreateDB()
@@ -69,6 +71,45 @@ func TestClientPut(t *testing.T) {
 	}
 }
 
+func TestAutoCreateDeploy(t *testing.T) {
+	mb, _ := mailbox.Create("put.autocreate.deploy")
+	msg, err := pmClient.Put([]string{mb.Id}, "", "TEST MESSAGE")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if msg.Deployment == "" {
+		t.Fatal("Deployment is empty")
+	}
+}
+
+func TestResponse(t *testing.T) {
+	mb, err := mailbox.Create("deployment.response")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dep, err := mailbox.CreateDeployment("dep", token.Token, "testMessage")
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg, err := mb.DeployMessage(dep.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = pmClient.Respond(msg.Id, "testing repsonse")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	responses, err := dep.GetResponses()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(responses) == 0 {
+		t.Fatal("Response was not added")
+	}
+}
+
 // TestClientDelete checks to make sure the client is capable of deleting
 // messages.
 func TestClientDelete(t *testing.T) {
@@ -103,7 +144,60 @@ func TestSystemStats(t *testing.T) {
 		t.Fatal(err)
 	}
 	if resp.PendingMessages == 0 {
-		t.Fatalf("Pending message count should not be 0")
+		t.Fatal("Pending message count should not be 0")
+	}
+}
+
+func TestListDeploys(t *testing.T) {
+	mb, err := mailbox.Create("deployment.list")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dep, err := mailbox.CreateDeployment("dep", token.Token, "test message")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = mb.DeployMessage(dep.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pmClient.Mailbox = mb.Id
+	resp, err := pmClient.ListDeploys()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.Deployments) == 0 {
+		t.Fatal("No deployments returned")
+	}
+}
+
+func TestDeploymentDetail(t *testing.T) {
+	mb, err := mailbox.Create("deployment.detail")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dep, err := mailbox.CreateDeployment("dep", token.Token, "test message")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = mb.DeployMessage(dep.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = dep.AddResponse(mb.Id, "test repsonse")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pmClient.Mailbox = mb.Id
+	resp, err := pmClient.DeploymentDetail(dep.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.Deployments) == 0 {
+		t.Fatal("No deployments returned")
+	}
+	if len(resp.Deployments[0].Responses) == 0 {
+		t.Fatal("No deployment responses returned")
 	}
 }
 

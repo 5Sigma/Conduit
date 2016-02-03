@@ -42,11 +42,13 @@ func (q *Queue) Get() (*ScriptCommand, error) {
 	script := &ScriptCommand{
 		ScriptBody: resp.Body,
 		Receipt:    resp.Message,
+		Deployment: resp.Deployment,
 	}
 	return script, nil
 }
 
-func (q *Queue) Put(mailboxes []string, pattern string, cmd *ScriptCommand) (int, error) {
+func (q *Queue) Put(mailboxes []string, pattern string,
+	cmd *ScriptCommand, deployment string) (int, error) {
 	resp, err := q.Client.Put(mailboxes, pattern, cmd.ScriptBody)
 	if err != nil {
 		return 0, err
@@ -64,6 +66,7 @@ func (q *Queue) SystemStats() (*api.SystemStatsResponse, error) {
 }
 
 type ScriptCommand struct {
-	ScriptBody string `json: "body"`
-	Receipt    string `json: "receipt"`
+	ScriptBody string
+	Receipt    string
+	Deployment string
 }

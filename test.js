@@ -1,23 +1,8 @@
-try {
-  // $file.write('write', "hello");
-  // // $file.copy("write", "copy");
-  // // console.log("size is: " + $file.size("write"));
-  // // $file.write('moveme', 'move');
-  // // $file.move("moveme", "move");
-  // $file.mkdir("/Users/chris/Downloads/mkdir/test");
-  // // $file.write("deleteme", "delete");
-  // // $file.delete("deleteme");
-  // console.log("exists?: " + $file.exists("write"));
-  // console.log("read this: " + $file.readString("write"));
-  //console.log($system.executeAndRead('sh', ["-c", "cd /Users/chris/Downloads/ && cat test.rb"]));
-  // console.log(JSON.stringify($system.currentUser()));
-  //$request.download('http://upgrades.quikserve.com.s3.amazonaws.com/Conduit4/conduit.jar', 'conduit.jar');
-  // console.log($request.get("http://www.google.com"));
-  // $system.kill("TextEdit");
-  // $system.execute("echo", []);
-  console.log("test");
-  $file.write("~/conduit-test.txt", "testing conduit")
-} catch(err) {
-  throw(new Error(err));
-} finally {
-}
+// var data = $file.readString("/mnt/qsposks/releases/20150601053041/dat/menuitem.dat")
+
+// $($system.executeAndRead("/bin/sh", ["-c", "ping -c 5 google.com"]));
+
+// $($system.executeAndRead("/bin/sh", ["-c", "df -h"]));
+
+$($system.executeAndRead("/bin/sh", ["-c", "uptime"]));
+

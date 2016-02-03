@@ -36,13 +36,13 @@ func createTestFile() {
 //EXISTS
 func TestFileExists(t *testing.T) {
 	createTestFile()
-
-	err := engine.Execute(`if (!$file.exists('test')) { throw new Error(); }`)
+	eng := engine.New()
+	err := eng.Execute(`if (!$file.exists('test')) { throw new Error(); }`)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = engine.Execute(`if ($file.exists('test2')) { throw new Error(); }`)
+	err = eng.Execute(`if ($file.exists('test2')) { throw new Error(); }`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -52,7 +52,8 @@ func TestFileExists(t *testing.T) {
 
 //WRITE
 func TestFileWrite(t *testing.T) {
-	err := engine.Execute(`$file.write('write_test.txt', 'test');`)
+	eng := engine.New()
+	err := eng.Execute(`$file.write('write_test.txt', 'test');`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -68,7 +69,8 @@ func TestFileWrite(t *testing.T) {
 }
 
 func TestFileWriteBadPath(t *testing.T) {
-	err := engine.Execute(`$file.write('/blah/test.txt', 'test');`)
+	eng := engine.New()
+	err := eng.Execute(`$file.write('/blah/test.txt', 'test');`)
 	if err == nil {
 		t.Fail()
 	}
@@ -77,8 +79,8 @@ func TestFileWriteBadPath(t *testing.T) {
 //COPY
 func TestFileCopy(t *testing.T) {
 	createTestFile()
-
-	err := engine.Execute(`$file.copy('test', 'test1');`)
+	eng := engine.New()
+	err := eng.Execute(`$file.copy('test', 'test1');`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -90,7 +92,8 @@ func TestFileCopy(t *testing.T) {
 }
 
 func TestFileCopyBadPath(t *testing.T) {
-	err := engine.Execute(`$file.copy('test', '/blah/test1');`)
+	eng := engine.New()
+	err := eng.Execute(`$file.copy('test', '/blah/test1');`)
 	if err == nil {
 		t.Fail()
 	}
@@ -99,8 +102,8 @@ func TestFileCopyBadPath(t *testing.T) {
 //MOVE
 func TestFileMove(t *testing.T) {
 	createTestFile()
-
-	err := engine.Execute(`$file.move('test', 'test1');`)
+	eng := engine.New()
+	err := eng.Execute(`$file.move('test', 'test1');`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -113,8 +116,8 @@ func TestFileMove(t *testing.T) {
 
 func TestFileMoveBadPath(t *testing.T) {
 	createTestFile()
-
-	err := engine.Execute(`$file.move('test', '/blah/test');`)
+	eng := engine.New()
+	err := eng.Execute(`$file.move('test', '/blah/test');`)
 	if err == nil {
 		t.Fail()
 	}
@@ -125,8 +128,8 @@ func TestFileMoveBadPath(t *testing.T) {
 //SIZE
 func TestFileSize(t *testing.T) {
 	createTestFile()
-
-	err := engine.Execute(`if ($file.size('test') != 4) { throw new Error(); }`)
+	eng := engine.New()
+	err := eng.Execute(`if ($file.size('test') != 4) { throw new Error(); }`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -137,8 +140,8 @@ func TestFileSize(t *testing.T) {
 //DELETE
 func TestFileDelete(t *testing.T) {
 	createTestFile()
-
-	err := engine.Execute(`$file.delete('test')`)
+	eng := engine.New()
+	err := eng.Execute(`$file.delete('test')`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -147,7 +150,8 @@ func TestFileDelete(t *testing.T) {
 //MKDIR
 func TestFileMkdir(t *testing.T) {
 	dir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
-	err := engine.Execute(`$file.mkdir('` + dir + `/test/test1');`)
+	eng := engine.New()
+	err := eng.Execute(`$file.mkdir('` + dir + `/test/test1');`)
 	if err != nil {
 		t.Error(err)
 	}
@@ -162,8 +166,8 @@ func TestFileMkdir(t *testing.T) {
 //READSTRING
 func TestFileReadString(t *testing.T) {
 	createTestFile()
-
-	err := engine.Execute(`if ($file.readString('test') != 'test') { throw new Error(); }`)
+	eng := engine.New()
+	err := eng.Execute(`if ($file.readString('test') != 'test') { throw new Error(); }`)
 	if err != nil {
 		t.Error(err)
 	}

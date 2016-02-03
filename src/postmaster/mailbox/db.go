@@ -14,10 +14,11 @@ func CreateDB() error {
 			CREATE TABLE message (
 				id string,
 				receiveCount int,
-				body string,
 				mailbox string,
 				createdAt time,
-				lastReceivedAt time
+				lastReceivedAt time,
+				deployment string,
+				deleted bool
 			);
 			CREATE TABLE mailbox (
 				id string,
@@ -31,6 +32,21 @@ func CreateDB() error {
 				token string,
 				name string,
 				fullAccess bool
+			);
+			CREATE TABLE deployment (
+				id string,
+				messageBody string,
+				name string,
+				deployedAt time,
+				deployedBy string,
+				totalMessages int,
+				open bool
+			);
+			CREATE TABLE deploymentResponse (
+				deployment string,
+				mailbox string,
+				response string,
+				respondedAt time
 			);
 			COMMIT;`)
 	return err

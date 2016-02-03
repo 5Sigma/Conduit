@@ -1,12 +1,6 @@
 package: conduit
 import:
-- package: github.com/aws/aws-sdk-go
-  subpackages:
-  - /aws
-  - aws/credentials
-  - aws/session
-  - service/s3
-  - service/sqs
+- package: github.com/gosuri/uiprogress
 - package: github.com/robertkrimen/otto
 - package: github.com/spf13/cobra
 - package: github.com/inconshreveable/mousetrap

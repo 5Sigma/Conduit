@@ -38,7 +38,6 @@ command to be delivered to it for processing.`,
 
 		q := queue.New(viper.GetString("queue.host"), viper.GetString("mailbox"),
 			viper.GetString("access_key"))
-
 		for {
 			script, err := q.Get()
 			if err != nil {
@@ -51,9 +50,13 @@ command to be delivered to it for processing.`,
 			}
 			errorCount = 0
 			if script != nil {
-				err := engine.Execute(script.ScriptBody)
+				eng := engine.New()
+				eng.Constant("DEPLOYMENT_ID", script.Deployment)
+				eng.Constant("SCRIPT_ID", script.Receipt)
+				err := eng.Execute(script.ScriptBody)
 				if err != nil {
-					log.Error("Error executing script." + script.Receipt)
+					log.Error("Error executing script " + script.Receipt)
+					log.Error(err.Error())
 					log.Debug(err.Error())
 				}
 				err = q.Delete(script)

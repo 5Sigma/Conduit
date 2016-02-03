@@ -37,7 +37,8 @@ var executeCmd = &cobra.Command{
 			os.Exit(-1)
 		}
 		startTime := time.Now()
-		engine.ExecuteFile(args[0])
+		eng := engine.New()
+		eng.ExecuteFile(args[0])
 		fmt.Printf("Script executed in %s .\n", time.Since(startTime))
 	},
 }

@@ -48,6 +48,6 @@ func TestQueueGet(t *testing.T) {
 	}
 
 	if string(script.ScriptBody) != msg.Body {
-		t.Fatal("Script body didnt match:", script.ScriptBody)
+		t.Fatalf("Script body: '%s' != '%s'", script.ScriptBody, msg.Body)
 	}
 }

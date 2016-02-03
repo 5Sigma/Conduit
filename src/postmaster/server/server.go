@@ -14,10 +14,19 @@ import (
 	"time"
 )
 
+// pollingChannels is used to internally store a map of connected clients that
+// are using long polling. A message is sent to the channel to complete the poll
+// cycle.
 var pollingChannels = make(map[string]chan *mailbox.Message)
 
+// EnableLongPolling controls if long polling is used. If false than clients
+// will be given an immediate empty repsonse if no messages are waiting for
+// them. If true the connection will be held until a message comes in or until
+// it timesout.
 var EnableLongPolling = true
 
+// ThrottleDelay will delay messages from being pushed to clients. This will
+// artificially throttle the connect and reconnects from the clients.
 var ThrottleDelay = 500 * time.Millisecond
 
 type EndPoint struct {
@@ -71,6 +80,8 @@ func Start(addr string) error {
 	endpoints.Add("POST", "/put", putMessage)
 	endpoints.Add("POST", "/stats", systemStats)
 	endpoints.Add("POST", "/delete", deleteMessage)
+	endpoints.Add("POST", "/deploy/list", deployInfo)
+	endpoints.Add("POST", "/deploy/respond", deployRespond)
 	http.Handle("/", &endpoints)
 	err := svr.ListenAndServe()
 	return err
@@ -137,7 +148,7 @@ func getMessage(w http.ResponseWriter, r *http.Request) {
 		pollingChannels[mb.Id] = make(chan *mailbox.Message)
 		timeout := make(chan bool, 1)
 		go func() {
-			time.Sleep(10 * time.Second)
+			time.Sleep(100 * time.Second)
 			timeout <- true
 		}()
 		select {
@@ -161,6 +172,7 @@ func getMessage(w http.ResponseWriter, r *http.Request) {
 		Body:         msg.Body,
 		CreatedAt:    msg.CreatedAt,
 		ReceiveCount: msg.ReceiveCount,
+		Deployment:   msg.Deployment,
 	}
 
 	log.Infof("Delivering message %s", response.Message)
@@ -211,12 +223,19 @@ func putMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	mbList := []string{}
+	dep, err := mailbox.CreateDeployment(request.DeploymentName, request.Token,
+		request.Body)
+	if err != nil {
+		sendError(w, err.Error())
+		return
+	}
 	for _, mb := range mailboxes {
 		if !mailbox.TokenCanPut(request.Token, mb.Id) {
-			sendError(w, "Not allowed to send messages")
+			sendError(w, "Not allowed to send messages to "+mb.Id)
 			return
 		}
-		msg, err := mb.PutMessage(request.Body)
+		var msg *mailbox.Message
+		msg, err = mb.DeployMessage(dep.Id)
 		mbList = append(mbList, mb.Id)
 		if err != nil {
 			sendError(w, err.Error())
@@ -229,6 +248,7 @@ func putMessage(w http.ResponseWriter, r *http.Request) {
 	resp := api.PutMessageResponse{
 		MessageSize: r.ContentLength,
 		Mailboxes:   mbList,
+		Deployment:  dep.Id,
 	}
 	log.Infof("Message received for %d mailboxes", len(mbList))
 	writeResponse(&w, resp)
@@ -278,5 +298,118 @@ func systemStats(w http.ResponseWriter, r *http.Request) {
 		ConnectedClients: int64(len(pollingChannels)),
 	}
 
+	writeResponse(&w, response)
+}
+
+func deployInfo(w http.ResponseWriter, r *http.Request) {
+	var request api.DeploymentStatsRequest
+	err := readRequest(r, &request)
+	if err != nil {
+		sendError(w, "Could not parse request")
+		return
+	}
+
+	if !mailbox.TokenCanAdmin(request.Token) {
+		sendError(w, "Not allowed to list deployments")
+		return
+	}
+	response := api.DeploymentStatsResponse{}
+	if request.Deployment == "" {
+		log.Info("Listing all deploys")
+		openDeployments, err := mailbox.GetOpenDeployments()
+		if err != nil {
+			sendError(w, err.Error())
+			return
+		}
+		for _, d := range openDeployments {
+			dStats, err := d.Stats()
+			if err != nil {
+				sendError(w, err.Error())
+				return
+			}
+			statsResp := api.DeploymentStats{
+				Name:          d.Name,
+				Id:            d.Id,
+				PendingCount:  dStats.PendingCount,
+				MessageCount:  dStats.MessageCount,
+				ResponseCount: dStats.ResponseCount,
+				CreatedAt:     d.DeployedAt,
+			}
+			response.Deployments = append(response.Deployments, statsResp)
+		}
+	} else {
+		dep, err := mailbox.FindDeployment(request.Deployment)
+		if err != nil {
+			sendError(w, err.Error())
+			return
+		}
+		dStats, err := dep.Stats()
+		if err != nil {
+			sendError(w, err.Error())
+			return
+		}
+		deploymentResponses, err := dep.GetResponses()
+		if err != nil {
+			sendError(w, err.Error())
+			return
+		}
+		statsResp := api.DeploymentStats{
+			Name:          dep.Name,
+			Id:            dep.Id,
+			PendingCount:  dStats.PendingCount,
+			MessageCount:  dStats.MessageCount,
+			ResponseCount: dStats.ResponseCount,
+			CreatedAt:     dep.DeployedAt,
+			Responses:     []api.DeploymentResponse{},
+		}
+		for _, r := range deploymentResponses {
+			apiR := api.DeploymentResponse{
+				Mailbox:     r.Mailbox,
+				Response:    r.Response,
+				RespondedAt: r.RespondedAt,
+			}
+			statsResp.Responses = append(statsResp.Responses, apiR)
+		}
+		response.Deployments = append(response.Deployments, statsResp)
+	}
+	writeResponse(&w, response)
+}
+
+func deployRespond(w http.ResponseWriter, r *http.Request) {
+	var request api.ResponseRequest
+	err := readRequest(r, &request)
+	if err != nil {
+		sendError(w, "Could not parse request")
+		return
+	}
+	msg, err := mailbox.FindMessage(request.Message)
+	if err != nil {
+		sendError(w, err.Error())
+		return
+	}
+	if msg == nil {
+		sendError(w, "Could not find message "+request.Message)
+		return
+	}
+	dep, err := mailbox.FindDeployment(msg.Deployment)
+	if err != nil {
+		sendError(w, err.Error())
+		return
+	}
+	if dep == nil {
+		sendError(w, "Could not find deployment "+msg.Deployment)
+		return
+	}
+	if !mailbox.TokenCanGet(request.Token, msg.Mailbox) {
+		sendError(w, "Not allowed to respond to deploys")
+		return
+	}
+	err = dep.AddResponse(msg.Mailbox, request.Response)
+	if err != nil {
+		sendError(w, err.Error())
+		return
+	}
+	response := api.SimpleResponse{Success: true}
+	log.Infof("Reponse added to %s from %s", dep.Id, msg.Mailbox)
 	writeResponse(&w, response)
 }

@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"postmaster/api"
+	"time"
 )
 
 // Client is used to connect to the postmaster server to receive and send
@@ -32,6 +33,9 @@ func (client *Client) request(endpoint string, req interface{},
 		return err
 	}
 	responseData, _ := ioutil.ReadAll(resp.Body)
+	if resp.StatusCode == 404 {
+		return errors.New("API endpoint not found")
+	}
 	if resp.StatusCode != 200 {
 		var errorResponse api.ApiError
 		json.Unmarshal(responseData, &errorResponse)
@@ -93,4 +97,54 @@ func (client *Client) Stats() (*api.SystemStatsResponse, error) {
 		return nil, err
 	}
 	return &response, nil
+}
+
+func (client *Client) ListDeploys() (*api.DeploymentStatsResponse, error) {
+	request := api.DeploymentStatsRequest{Token: client.Token}
+	var response api.DeploymentStatsResponse
+	err := client.request("deploy/list", request, &response)
+	if err != nil {
+		return nil, err
+	}
+	return &response, nil
+}
+
+func (client *Client) DeploymentDetail(id string) (*api.DeploymentStatsResponse, error) {
+	request := api.DeploymentStatsRequest{Token: client.Token, Deployment: id}
+	var response api.DeploymentStatsResponse
+	err := client.request("deploy/list", request, &response)
+	if err != nil {
+		return nil, err
+	}
+	return &response, nil
+}
+
+func (client *Client) Respond(messageId string, msg string) error {
+	request := api.ResponseRequest{
+		Token:    client.Token,
+		Response: msg,
+		Message:  messageId,
+	}
+	var response api.SimpleResponse
+	err := client.request("deploy/respond", request, &response)
+	return err
+}
+
+func (client *Client) PollDeployment(depId string,
+	f func(*api.DeploymentStats) bool) (*api.DeploymentStats, error) {
+	request := api.DeploymentStatsRequest{Token: client.Token, Deployment: depId}
+	var response *api.DeploymentStatsResponse
+	loop := true
+	for loop != false {
+		err := client.request("deploy/list", request, &response)
+		if err != nil {
+			return nil, err
+		}
+		if len(response.Deployments) == 0 {
+			return nil, errors.New("Could not find deployment")
+		}
+		loop = f(&response.Deployments[0])
+		time.Sleep(1 * time.Second)
+	}
+	return &response.Deployments[0], nil
 }

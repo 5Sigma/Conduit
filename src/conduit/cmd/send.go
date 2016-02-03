@@ -3,9 +3,12 @@ package cmd
 import (
 	"conduit/log"
 	"conduit/queue"
+	"github.com/gosuri/uiprogress"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"io/ioutil"
+	"postmaster/api"
+	"time"
 )
 
 // sendCmd represents the send command
@@ -32,12 +35,41 @@ files.`,
 			log.Fatal(err.Error())
 		}
 		scriptCmd := &queue.ScriptCommand{ScriptBody: string(data)}
-		count, err := q.Put(mailboxes, pattern, scriptCmd)
+		resp, err := q.Client.Put(mailboxes, pattern, scriptCmd.ScriptBody)
+		if err != nil {
+			log.Debug(err.Error())
+			log.Error("Could not deploy script")
+		}
 		if err != nil {
 			log.Fatal(err.Error())
 		}
 		log.Infof("Script deployed to %d mailboxes (%d bytes)",
-			count, len(data))
+			len(resp.Mailboxes), len(scriptCmd.ScriptBody))
+		bar := uiprogress.AddBar(len(resp.Mailboxes))
+		bar.AppendCompleted()
+		bar.PrependElapsed()
+		uiprogress.Start()
+		stats, err := q.Client.PollDeployment(resp.Deployment,
+			func(stats *api.DeploymentStats) bool {
+				messagesProcessed := stats.MessageCount - stats.PendingCount
+				bar.Set(int(messagesProcessed))
+				if stats.PendingCount == 0 {
+					return false
+				} else {
+					return true
+				}
+			})
+		time.Sleep(100 * time.Millisecond)
+		if err != nil {
+			log.Debug(err.Error())
+			log.Error("Could not get deployment statistics.")
+		}
+		if len(stats.Responses) > 0 {
+			log.Info("\nResponses:")
+		}
+		for _, r := range stats.Responses {
+			log.Infof("%s: %s", r.Mailbox, r.Response)
+		}
 	},
 }
 
