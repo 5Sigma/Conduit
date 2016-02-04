@@ -60,7 +60,7 @@ func TestClientGet(t *testing.T) {
 func TestClientPut(t *testing.T) {
 	mb1, _ := mailbox.Create("put1")
 	mb2, _ := mailbox.Create("put2")
-	_, err := pmClient.Put([]string{mb1.Id, mb2.Id}, "", "PUT TEST")
+	_, err := pmClient.Put([]string{mb1.Id, mb2.Id}, "", "PUT TEST", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,12 +73,19 @@ func TestClientPut(t *testing.T) {
 
 func TestAutoCreateDeploy(t *testing.T) {
 	mb, _ := mailbox.Create("put.autocreate.deploy")
-	msg, err := pmClient.Put([]string{mb.Id}, "", "TEST MESSAGE")
+	msg, err := pmClient.Put([]string{mb.Id}, "", "TEST MESSAGE", "blah")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if msg.Deployment == "" {
 		t.Fatal("Deployment is empty")
+	}
+	dep, err := mailbox.FindDeployment(msg.Deployment)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dep.Name != "blah" {
+		t.Fatal("Deployment name not set")
 	}
 }
 
@@ -87,7 +94,12 @@ func TestResponse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dep, err := mailbox.CreateDeployment("dep", token.Token, "testMessage")
+	dep := &mailbox.Deployment{
+		Name:        "dep",
+		DeployedBy:  token.Token,
+		MessageBody: "testMessage",
+	}
+	err = dep.Create()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,7 +165,12 @@ func TestListDeploys(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dep, err := mailbox.CreateDeployment("dep", token.Token, "test message")
+	dep := &mailbox.Deployment{
+		Name:        "dep",
+		DeployedBy:  token.Token,
+		MessageBody: "test message",
+	}
+	err = dep.Create()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +179,7 @@ func TestListDeploys(t *testing.T) {
 		t.Fatal(err)
 	}
 	pmClient.Mailbox = mb.Id
-	resp, err := pmClient.ListDeploys()
+	resp, err := pmClient.ListDeploys(".*", false, 10)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,7 +193,8 @@ func TestDeploymentDetail(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dep, err := mailbox.CreateDeployment("dep", token.Token, "test message")
+	dep := mailbox.Deployment{MessageBody: "test message"}
+	err = dep.Create()
 	if err != nil {
 		t.Fatal(err)
 	}

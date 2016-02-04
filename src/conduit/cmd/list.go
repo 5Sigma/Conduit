@@ -19,24 +19,24 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"postmaster/client"
+	"strconv"
 )
 
 // listCmd represents the list command
 var listCmd = &cobra.Command{
 	Use:   "list",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "List past deployments",
+	Long: `Lists past deployments, by default it will list the last 10 deployments
+made by your access key.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		client := client.Client{
 			Host:  viper.GetString("queue.host"),
 			Token: viper.GetString("access_key"),
 		}
-		resp, err := client.ListDeploys()
+		limitToken := (cmd.Flag("all").Value.String() == "false")
+		count, _ := strconv.ParseInt(cmd.Flag("count").Value.String(), 10, 64)
+		resp, err := client.ListDeploys(cmd.Flag("name").Value.String(),
+			limitToken, int(count))
 		if err != nil {
 			log.Debug(err.Error())
 			log.Error("Could not list deploys")
@@ -47,23 +47,22 @@ to quickly create a Cobra application.`,
 		}
 		for _, dep := range resp.Deployments {
 			log.Infof("%s:", dep.Name)
-			log.Infof("   Pending scripts: %d/%d", dep.PendingCount, dep.MessageCount)
-			log.Infof("   Repsonses: %d", dep.ResponseCount)
+			log.Infof("   Deployed at: %s",
+				dep.CreatedAt.Format("01/02 03:04 PM"))
+			log.Infof("   Deployed by: %s", dep.DeployedBy)
+			log.Infof("   Processed scripts: %d/%d",
+				dep.MessageCount-dep.PendingCount, dep.MessageCount)
+			log.Infof("   Repsonses: %d/%d", dep.ResponseCount, dep.MessageCount)
 		}
 	},
 }
 
 func init() {
 	deployCmd.AddCommand(listCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// listCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// listCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	listCmd.Flags().IntP("count", "c", 10,
+		"The maximum number of deployments to return")
+	listCmd.Flags().BoolP("all", "a", false, "Return all deployments")
+	listCmd.Flags().StringP("name", "n", ".*",
+		"A search pattern to limit deployment names")
 
 }

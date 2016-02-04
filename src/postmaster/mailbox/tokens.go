@@ -3,7 +3,6 @@ package mailbox
 import (
 	"errors"
 	"github.com/cznic/ql"
-	"github.com/nu7hatch/gouuid"
 )
 
 type AccessToken struct {
@@ -13,7 +12,7 @@ type AccessToken struct {
 	Name       string
 }
 
-func saveToken(token *AccessToken) error {
+func (token *AccessToken) Create() error {
 	if token.FullAccess == false {
 		mb, err := Find(token.Mailbox)
 		if err != nil {
@@ -35,29 +34,28 @@ func saveToken(token *AccessToken) error {
 	return err
 }
 
-func CreateMailboxToken(mailbox string) (*AccessToken, error) {
-	id, _ := uuid.NewV4()
+func (mb *Mailbox) CreateToken() (*AccessToken, error) {
 	token := &AccessToken{
-		Token:      id.String(),
-		Mailbox:    mailbox,
+		Token:      GenerateIdentifier(),
+		Mailbox:    mb.Id,
 		FullAccess: false,
 	}
-	err := saveToken(token)
+	err := token.Create()
 	return token, err
 }
 
 func CreateAPIToken(name string) (*AccessToken, error) {
-	id, _ := uuid.NewV4()
+	id := GenerateIdentifier()
+	tokenName := name
 	if name == "" {
-		nameUUID, _ := uuid.NewV4()
-		name = nameUUID.String()
+		tokenName = id
 	}
 	token := &AccessToken{
-		Token:      id.String(),
+		Token:      id,
 		FullAccess: true,
-		Name:       name,
+		Name:       tokenName,
 	}
-	err := saveToken(token)
+	err := token.Create()
 	return token, err
 }
 

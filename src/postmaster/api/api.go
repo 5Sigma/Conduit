@@ -17,9 +17,10 @@ type PutMessageRequest struct {
 }
 
 type PutMessageResponse struct {
-	MessageSize int64    `json:"messageSize"`
-	Mailboxes   []string `json:"mailboxes"`
-	Deployment  string   `json:deploymentId"`
+	MessageSize    int64    `json:"messageSize"`
+	Mailboxes      []string `json:"mailboxes"`
+	Deployment     string   `json:"deploymentId"`
+	DeploymentName string   `json:"deploymentName"`
 }
 
 type GetMessageRequest struct {
@@ -57,43 +58,57 @@ type SimpleRequest struct {
 }
 
 type SimpleResponse struct {
-	Success bool `json: "success"`
+	Success bool `json:"success"`
 }
 
 type SystemStatsResponse struct {
-	TotalMailboxes   int64 `json: "totalMailboxes"`
-	PendingMessages  int64 `json: "pendingMessages"`
-	ConnectedClients int64 `json: "connectedClients"`
+	TotalMailboxes   int64 `json:"totalMailboxes"`
+	PendingMessages  int64 `json:"pendingMessages"`
+	ConnectedClients int64 `json:"connectedClients"`
 }
 
 type DeploymentStatsRequest struct {
-	Token        string `json: "token"`
-	Deployment   string `json: "deploymentId"`
-	GetResponses bool   `json: "getResponses"`
+	Token        string `json:"token"`
+	Deployment   string `json:"deploymentId"`
+	GetResponses bool   `json:"getResponses"`
+	Count        int64  `json:"count"`
+	NamePattern  string `json:"nameSearch"`
+	TokenPattern string `json:"tokenSearch"`
 }
 
 type DeploymentStatsResponse struct {
-	Deployments []DeploymentStats `json: "deployments"`
+	Deployments []DeploymentStats `json:"deployments"`
 }
 
 type DeploymentStats struct {
 	Id            string               `json:"deploymentId"`
-	Name          string               `json: "name"`
-	CreatedAt     time.Time            `json: "createdAt"`
-	PendingCount  int64                `json: "pendingMessages"`
-	MessageCount  int64                `json: "totalMessages"`
-	ResponseCount int64                `json: "responseCount"`
-	Responses     []DeploymentResponse `json: "repsonses"`
+	Name          string               `json:"name"`
+	CreatedAt     time.Time            `json:"createdAt"`
+	PendingCount  int64                `json:"pendingMessages"`
+	MessageCount  int64                `json:"totalMessages"`
+	ResponseCount int64                `json:"responseCount"`
+	Responses     []DeploymentResponse `json:"repsonses"`
+	DeployedBy    string               `json:"deployedBy"`
 }
 
 type DeploymentResponse struct {
-	Mailbox     string    `json: "mailbox"`
-	Response    string    `json: "response"`
-	RespondedAt time.Time `json: "respondedAt"`
+	Mailbox     string    `json:"mailbox"`
+	Response    string    `json:"response"`
+	RespondedAt time.Time `json:"respondedAt"`
 }
 
 type ResponseRequest struct {
-	Token    string `json: "token"`
-	Response string `json: "response"`
-	Message  string `json: "mailbox"`
+	Token    string `json:"token"`
+	Response string `json:"response"`
+	Message  string `json:"mailbox"`
+}
+
+type RegisterRequest struct {
+	Mailbox string `json:"mailbox"`
+	Token   string `json:"token"`
+}
+
+type RegisterResponse struct {
+	Mailbox      string `json:"mailboxName"`
+	MailboxToken string `json:"accessKey"`
 }

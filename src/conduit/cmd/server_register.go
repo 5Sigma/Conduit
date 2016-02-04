@@ -17,40 +17,35 @@ package cmd
 import (
 	"conduit/log"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"postmaster/client"
+	"postmaster/mailbox"
 )
 
 // registerCmd represents the register command
-var registerCmd = &cobra.Command{
+var serverRegisterCmd = &cobra.Command{
 	Use:   "register [name]",
-	Short: "Register a new mailbox on the remote server.",
-	Long: `This will register a new mailbox on the configured Conduit server. An
-access key will also be generated and bound to the mailbox. This key can be
-used by Conduit clients to receive messages from this mailbox.
-
-Mailboxes can be locally generated as well.
-Use "conduit help server register" for more information.
-`,
+	Short: "Register a new mailbox",
+	Long:  `This registers a new mailbox for the local server.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
-			log.Fatal("No mailbox identifier specified.")
+			log.Fatal("No mailbox name specified")
 		}
-		client := client.Client{
-			Host:  viper.GetString("queue.host"),
-			Token: viper.GetString("access_key"),
-		}
-		resp, err := client.RegisterMailbox(args[0])
+		mailbox.OpenDB()
+		mb, err := mailbox.Create(args[0])
 		if err != nil {
 			log.Debug(err.Error())
-			log.Fatal("Could not register mailbox.")
+			log.Fatal("Could not create mailbox")
 		}
-		log.Infof("Mailbox registered: %s", resp.Mailbox)
-		log.Infof("Access key generated: %s", resp.MailboxToken)
+		token, err := mailbox.CreateMailboxToken(mb.Id)
+		if err != nil {
+			log.Debug(err.Error())
+			log.Fatal("Could not create mailbox access token")
+		}
+		log.Infof("Mailbox created: %s", mb.Id)
+		log.Infof("Access key created: %s", token.Token)
 	},
 }
 
 func init() {
-	RootCmd.AddCommand(registerCmd)
+	serverCmd.AddCommand(serverRegisterCmd)
 
 }

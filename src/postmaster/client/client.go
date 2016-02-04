@@ -14,9 +14,10 @@ import (
 // Client is used to connect to the postmaster server to receive and send
 // messages through the queue.
 type Client struct {
-	Host    string
-	Token   string
-	Mailbox string
+	Host         string
+	Token        string
+	Mailbox      string
+	ShowRequests bool
 }
 
 // request wraps HTTP requests to the postmaster server. It is used internally
@@ -33,6 +34,10 @@ func (client *Client) request(endpoint string, req interface{},
 		return err
 	}
 	responseData, _ := ioutil.ReadAll(resp.Body)
+	if client.ShowRequests {
+		fmt.Printf("Request: %s\nResponse: %s\n", string(requestBytes),
+			string(responseData))
+	}
 	if resp.StatusCode == 404 {
 		return errors.New("API endpoint not found")
 	}
@@ -50,6 +55,7 @@ func (client *Client) Get() (*api.GetMessageResponse, error) {
 		Mailbox: client.Mailbox,
 		Token:   client.Token,
 	}
+
 	var response api.GetMessageResponse
 	err := client.request("get", request, &response)
 	if err != nil {
@@ -61,13 +67,14 @@ func (client *Client) Get() (*api.GetMessageResponse, error) {
 // Put sends a message to a series of mailboxes. An array of mailboxes can be
 // provided, as well as a pattern using '*' as wildcards. The message will by
 // sent to all matching mailboxes.
-func (client *Client) Put(mbxs []string, pattern string,
-	msg string) (*api.PutMessageResponse, error) {
+func (client *Client) Put(mbxs []string, pattern string, msg string,
+	deploymentName string) (*api.PutMessageResponse, error) {
 	request := api.PutMessageRequest{
-		Mailboxes: mbxs,
-		Body:      msg,
-		Pattern:   pattern,
-		Token:     client.Token,
+		Mailboxes:      mbxs,
+		Body:           msg,
+		Pattern:        pattern,
+		Token:          client.Token,
+		DeploymentName: deploymentName,
 	}
 	var response api.PutMessageResponse
 	err := client.request("put", request, &response)
@@ -99,8 +106,17 @@ func (client *Client) Stats() (*api.SystemStatsResponse, error) {
 	return &response, nil
 }
 
-func (client *Client) ListDeploys() (*api.DeploymentStatsResponse, error) {
-	request := api.DeploymentStatsRequest{Token: client.Token}
+func (client *Client) ListDeploys(namePattern string, limitToken bool,
+	count int) (*api.DeploymentStatsResponse, error) {
+	request := api.DeploymentStatsRequest{
+		Token:        client.Token,
+		Count:        int64(count),
+		NamePattern:  namePattern,
+		TokenPattern: ".*",
+	}
+	if limitToken {
+		request.TokenPattern = client.Token
+	}
 	var response api.DeploymentStatsResponse
 	err := client.request("deploy/list", request, &response)
 	if err != nil {
@@ -113,10 +129,7 @@ func (client *Client) DeploymentDetail(id string) (*api.DeploymentStatsResponse,
 	request := api.DeploymentStatsRequest{Token: client.Token, Deployment: id}
 	var response api.DeploymentStatsResponse
 	err := client.request("deploy/list", request, &response)
-	if err != nil {
-		return nil, err
-	}
-	return &response, nil
+	return &response, err
 }
 
 func (client *Client) Respond(messageId string, msg string) error {
@@ -147,4 +160,14 @@ func (client *Client) PollDeployment(depId string,
 		time.Sleep(1 * time.Second)
 	}
 	return &response.Deployments[0], nil
+}
+
+func (client *Client) RegisterMailbox(m string) (*api.RegisterResponse, error) {
+	request := &api.RegisterRequest{
+		Token:   client.Token,
+		Mailbox: m,
+	}
+	var response *api.RegisterResponse
+	err := client.request("register", request, &response)
+	return response, err
 }

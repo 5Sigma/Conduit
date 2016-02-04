@@ -1,52 +1,85 @@
-// Copyright © 2016 NAME HERE <EMAIL ADDRESS>
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package cmd
 
 import (
-	"fmt"
-
+	"conduit/log"
+	"github.com/gosuri/uiprogress"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"io/ioutil"
+	"postmaster/api"
+	"postmaster/client"
+	"time"
 )
 
-// deployCmd represents the deploy command
+// sendCmd represents the send command
 var deployCmd = &cobra.Command{
-	Use:   "deploy",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Use:     "deploy [file] [client]",
+	Aliases: []string{"send"},
+	Short:   "Send a script to be executed",
+	Long: `Send a script to be executed by a client. The file can either be a
+javascript file or a zip file containing a javascript file and other arbitrary
+files.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// TODO: Work your own magic here
-		fmt.Println("deploy called")
+		client := client.Client{
+			Host:    viper.GetString("queue.host"),
+			Mailbox: viper.GetString("mailbox"),
+			Token:   viper.GetString("access_key"),
+		}
+		if len(args) == 0 {
+			log.Fatal("No script specified.")
+		}
+		filename := args[0]
+		mailboxes := args[1:]
+		pattern := cmd.Flag("pattern").Value.String()
+		if pattern == "" && len(mailboxes) == 0 {
+			log.Fatal("Must provide either a list of mailboxes, a pattern, or both.")
+		}
+		data, err := ioutil.ReadFile(filename)
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+		resp, err := client.Put(mailboxes, pattern, string(data),
+			cmd.Flag("name").Value.String())
+		if err != nil {
+			log.Debug(err.Error())
+			log.Error("Could not deploy script")
+		}
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+		log.Infof("Script deployed to %d mailboxes (%d bytes)",
+			len(resp.Mailboxes), len(data))
+		bar := uiprogress.AddBar(len(resp.Mailboxes))
+		bar.AppendCompleted()
+		bar.PrependElapsed()
+		uiprogress.Start()
+		stats, err := client.PollDeployment(resp.Deployment,
+			func(stats *api.DeploymentStats) bool {
+				messagesProcessed := stats.MessageCount - stats.PendingCount
+				bar.Set(int(messagesProcessed))
+				if stats.PendingCount == 0 {
+					return false
+				} else {
+					return true
+				}
+			})
+		time.Sleep(100 * time.Millisecond)
+		if err != nil {
+			log.Debug(err.Error())
+			log.Error("Could not get deployment statistics.")
+			return
+		}
+		if len(stats.Responses) > 0 {
+			log.Info("\nResponses:")
+		}
+		for _, r := range stats.Responses {
+			log.Infof("%s: %s", r.Mailbox, r.Response)
+		}
 	},
 }
 
 func init() {
 	RootCmd.AddCommand(deployCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// deployCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// deployCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-
+	deployCmd.Flags().StringP("pattern", "p", "", "Wildcard search for mailboxes.")
+	deployCmd.Flags().StringP("name", "n", "", "Deployment name")
 }

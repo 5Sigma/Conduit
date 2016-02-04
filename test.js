@@ -4,5 +4,4 @@
 
 // $($system.executeAndRead("/bin/sh", ["-c", "df -h"]));
 
-$($system.executeAndRead("/bin/sh", ["-c", "uptime"]));
 

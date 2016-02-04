@@ -13,20 +13,41 @@ import (
 	"testing"
 )
 
-func TestMain(m *testing.M) {
-	mailbox.OpenMemDB()
-	mailbox.CreateDB()
+type TestDeployment struct {
+	Token      *mailbox.AccessToken
+	Deployment *mailbox.Deployment
+	Mailbox    *mailbox.Mailbox
+	Message    *mailbox.Message
+}
 
-	server.EnableLongPolling = false
-	server.ThrottleDelay = 0
-	log.LogStdOut = false
-
-	go server.Start(":4111")
-
-	retCode := m.Run()
-
-	mailbox.CloseDB()
-	os.Exit(retCode)
+func generateDeployment() (*TestDeployment, error) {
+	token, err := mailbox.CreateAPIToken(mailbox.GenerateIdentifier())
+	if err != nil {
+		return nil, err
+	}
+	deployment := &mailbox.Deployment{
+		MessageBody: mailbox.GenerateIdentifier(),
+		Name:        mailbox.GenerateIdentifier(),
+		DeployedBy:  token.Token,
+	}
+	err = deployment.Create()
+	if err != nil {
+		return nil, err
+	}
+	mb, err := mailbox.Create(mailbox.GenerateIdentifier())
+	if err != nil {
+		return nil, err
+	}
+	msg, err := deployment.Deploy(mb)
+	if err != nil {
+		return nil, err
+	}
+	return &TestDeployment{
+		Token:      token,
+		Deployment: deployment,
+		Mailbox:    mb,
+		Message:    msg,
+	}, nil
 }
 
 func doRequest(t *testing.T, req interface{}, response interface{},
@@ -44,22 +65,34 @@ func doRequest(t *testing.T, req interface{}, response interface{},
 	return resp.StatusCode
 }
 
+func TestMain(m *testing.M) {
+	mailbox.OpenMemDB()
+	mailbox.CreateDB()
+
+	server.EnableLongPolling = false
+	server.ThrottleDelay = 0
+	log.LogStdOut = false
+
+	go server.Start(":4111")
+
+	retCode := m.Run()
+
+	mailbox.CloseDB()
+	os.Exit(retCode)
+}
+
 func TestGet(t *testing.T) {
-	mb, err := mailbox.Create("get")
-	if err != nil {
-		t.Fatal(err)
-	}
-	mb.PutMessage("TEST")
-	token, _ := mailbox.CreateMailboxToken(mb.Id)
-	req := api.GetMessageRequest{Mailbox: mb.Id, Token: token.Token}
+	dep, _ := generateDeployment()
+	req := api.GetMessageRequest{Mailbox: dep.Mailbox.Id, Token: dep.Token.Token}
 	var resp api.GetMessageResponse
 	doRequest(t, req, &resp, "get")
-	if resp.Body != "TEST" {
-		t.Fatal("Message body is not correct")
+	if resp.Body != dep.Message.Body {
+		t.Fatalf("Message body TEST!=%s", dep.Message.Body)
 	}
 	if resp.ReceiveCount != 1 {
 		t.Fatal("Message receiveCount is not 1")
 	}
+
 	doRequest(t, req, &resp, "get")
 	if resp.ReceiveCount != 2 {
 		t.Fatal("Message receiveCount did not increase to 2 on second call")
@@ -132,7 +165,7 @@ func TestPut(t *testing.T) {
 
 func TestPutBadToken(t *testing.T) {
 	mb, _ := mailbox.Create("puttest.badtoken")
-	token, _ := mailbox.CreateMailboxToken(mb.Id)
+	token, _ := mb.CreateToken()
 	req := api.PutMessageRequest{
 		Mailboxes: []string{mb.Id},
 		Body:      "TEST MESSAGE",
@@ -200,6 +233,7 @@ func TestBadMailbox(t *testing.T) {
 		t.Fatal("Should of responded with 400 but it responded with", code)
 	}
 }
+
 func TestSystemStats(t *testing.T) {
 	mailbox.Create("stats.systemtest")
 	token, err := mailbox.CreateAPIToken("systemstatstoken")
@@ -211,5 +245,107 @@ func TestSystemStats(t *testing.T) {
 	code := doRequest(t, req, &resp, "stats")
 	if code != 200 {
 		t.Fatal("Server responded with", code)
+	}
+}
+
+func TestDeployInfoList(t *testing.T) {
+	mb, _ := mailbox.Create("stats.deployinfo")
+	token, err := mailbox.CreateAPIToken("stats.deployinfo")
+	mb.PutMessage("test")
+	mb.PutMessage("test2")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := api.DeploymentStatsRequest{
+		Token: token.Token,
+		Count: 2,
+	}
+	var resp api.DeploymentStatsResponse
+	code := doRequest(t, req, &resp, "deploy/list")
+	if code != 200 {
+		t.Fatalf("Server repsponded with %d", code)
+	}
+	if len(resp.Deployments) != 2 {
+		t.Fatalf("Deployment count %d!=2", len(resp.Deployments))
+	}
+}
+
+func TestDeployInfoListByToken(t *testing.T) {
+	dep1, err := generateDeployment()
+	if err != nil {
+		t.Fatal(err)
+	}
+	dep2, err := generateDeployment()
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := api.DeploymentStatsRequest{
+		Token:        dep1.Token.Token,
+		Count:        2,
+		TokenPattern: dep2.Token.Token,
+	}
+	var resp api.DeploymentStatsResponse
+	code := doRequest(t, req, &resp, "deploy/list")
+	if code != 200 {
+		t.Fatalf("Server repsponded with %d", code)
+	}
+	if len(resp.Deployments) != 1 {
+		t.Fatalf("Deployment count %d!=1", len(resp.Deployments))
+	}
+}
+
+func TestDeployListByName(t *testing.T) {
+	deployment1, err := generateDeployment()
+	if err != nil {
+		t.Fatal(err)
+	}
+	deployment1.Deployment.Name = "test"
+	deployment1.Deployment.Save()
+	generateDeployment()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := api.DeploymentStatsRequest{
+		Token:       deployment1.Token.Token,
+		Count:       10,
+		NamePattern: "t*t",
+	}
+
+	var resp api.DeploymentStatsResponse
+	code := doRequest(t, req, &resp, "deploy/list")
+	if code != 200 {
+		t.Fatalf("Server repsponded with %d", code)
+	}
+	if len(resp.Deployments) != 1 {
+		t.Fatalf("Deployment length %d != 1", len(resp.Deployments))
+	}
+}
+
+func TestRegister(t *testing.T) {
+	token, err := mailbox.CreateAPIToken("tesT")
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := api.RegisterRequest{
+		Token:   token.Token,
+		Mailbox: "register.test",
+	}
+	var resp api.RegisterResponse
+	code := doRequest(t, req, &resp, "register")
+	if code != 200 {
+		t.Fatalf("Server repsponded with %d", code)
+	}
+	mb, err := mailbox.Find("register.test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mb == nil {
+		t.Fatal("Mailbox not registered")
+	}
+	if !mailbox.TokenCanGet(token.Token, mb.Id) {
+		t.Fatal("Token not bound to mailbox")
 	}
 }

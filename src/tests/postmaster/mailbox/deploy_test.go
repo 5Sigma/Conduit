@@ -14,7 +14,8 @@ func TestAddResponse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dep, err := mailbox.CreateDeployment("test", token.Token, "test")
+	dep := mailbox.Deployment{MessageBody: "test", DeployedBy: token.Token}
+	err = dep.Create()
 	if err != nil {
 		t.Fatal(err)
 	}

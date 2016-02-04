@@ -7,7 +7,7 @@ import (
 
 func TestCreateMailboxToken(t *testing.T) {
 	mb, _ := mailbox.Create("tokentest.mailboxToken")
-	token, err := mailbox.CreateMailboxToken(mb.Id)
+	token, err := mb.CreateToken()
 	if err != nil {
 		t.Fatal(err)
 	}

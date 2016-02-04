@@ -1,5 +1,5 @@
-hash: 7337e113fac2092d4363407d8a34bb8cd1cc2ab21b25e1d8fe8f9f781730150b
-updated: 2016-02-03T11:23:21.322856854-06:00
+hash: 62e2ea076cec58802beeff315c0f4ee7019d943f66bb7a91f84406bc0f6eae54
+updated: 2016-02-03T16:27:06.372621226-06:00
 imports:
 - name: github.com/armon/consul-api
   version: dcfedd50ed5334f96adee43fc88518a4f095e15c
@@ -17,7 +17,6 @@ imports:
   - spew
 - name: github.com/gosuri/uilive
   version: efb88ccd059957c48f24f9d351d33a0eb00ede41
-  repo: https://github.com/gosuri/uilive
 - name: github.com/gosuri/uiprogress
   version: a9f819bfc744fe70043abcc5a6cd0137a678e3d8
 - name: github.com/hashicorp/hcl
@@ -32,6 +31,8 @@ imports:
   version: bb797dc4fb8320488f47bf11de07a733d7233e1f
 - name: github.com/magiconair/properties
   version: c81f9d71af8f8cba1466501d30326b99a4e56c19
+- name: github.com/mattn/go-isatty
+  version: 56b76bdf51f7708750eac80fa38b952bb9f32639
 - name: github.com/mitchellh/mapstructure
   version: 281073eb9eb092240d33ef253c404f1cca550309
 - name: github.com/nbutton23/zxcvbn-go

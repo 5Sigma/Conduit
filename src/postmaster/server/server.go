@@ -82,6 +82,7 @@ func Start(addr string) error {
 	endpoints.Add("POST", "/delete", deleteMessage)
 	endpoints.Add("POST", "/deploy/list", deployInfo)
 	endpoints.Add("POST", "/deploy/respond", deployRespond)
+	endpoints.Add("POST", "/register", register)
 	http.Handle("/", &endpoints)
 	err := svr.ListenAndServe()
 	return err
@@ -223,19 +224,29 @@ func putMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	mbList := []string{}
-	dep, err := mailbox.CreateDeployment(request.DeploymentName, request.Token,
-		request.Body)
+	// dep, err := mailbox.CreateDeployment(request.DeploymentName, request.Token,
+	// 	request.Body)
+
+	dep := mailbox.Deployment{
+		Name:        request.DeploymentName,
+		DeployedBy:  request.Token,
+		MessageBody: request.Body,
+	}
+
+	err = dep.Create()
+
 	if err != nil {
 		sendError(w, err.Error())
 		return
 	}
+
 	for _, mb := range mailboxes {
 		if !mailbox.TokenCanPut(request.Token, mb.Id) {
 			sendError(w, "Not allowed to send messages to "+mb.Id)
 			return
 		}
 		var msg *mailbox.Message
-		msg, err = mb.DeployMessage(dep.Id)
+		msg, err = dep.Deploy(&mb)
 		mbList = append(mbList, mb.Id)
 		if err != nil {
 			sendError(w, err.Error())
@@ -245,11 +256,13 @@ func putMessage(w http.ResponseWriter, r *http.Request) {
 			pollChannel <- msg
 		}
 	}
+
 	resp := api.PutMessageResponse{
 		MessageSize: r.ContentLength,
 		Mailboxes:   mbList,
 		Deployment:  dep.Id,
 	}
+
 	log.Infof("Message received for %d mailboxes", len(mbList))
 	writeResponse(&w, resp)
 }
@@ -308,6 +321,9 @@ func deployInfo(w http.ResponseWriter, r *http.Request) {
 		sendError(w, "Could not parse request")
 		return
 	}
+	if request.NamePattern == "" {
+		request.NamePattern = ".*"
+	}
 
 	if !mailbox.TokenCanAdmin(request.Token) {
 		sendError(w, "Not allowed to list deployments")
@@ -316,12 +332,14 @@ func deployInfo(w http.ResponseWriter, r *http.Request) {
 	response := api.DeploymentStatsResponse{}
 	if request.Deployment == "" {
 		log.Info("Listing all deploys")
-		openDeployments, err := mailbox.GetOpenDeployments()
+		deployments, err := mailbox.ListDeployments(request.NamePattern,
+			int(request.Count), request.TokenPattern)
 		if err != nil {
 			sendError(w, err.Error())
 			return
 		}
-		for _, d := range openDeployments {
+		fmt.Println(request.TokenPattern)
+		for _, d := range deployments {
 			dStats, err := d.Stats()
 			if err != nil {
 				sendError(w, err.Error())
@@ -334,6 +352,7 @@ func deployInfo(w http.ResponseWriter, r *http.Request) {
 				MessageCount:  dStats.MessageCount,
 				ResponseCount: dStats.ResponseCount,
 				CreatedAt:     d.DeployedAt,
+				DeployedBy:    d.DeployedBy,
 			}
 			response.Deployments = append(response.Deployments, statsResp)
 		}
@@ -412,4 +431,33 @@ func deployRespond(w http.ResponseWriter, r *http.Request) {
 	response := api.SimpleResponse{Success: true}
 	log.Infof("Reponse added to %s from %s", dep.Id, msg.Mailbox)
 	writeResponse(&w, response)
+}
+
+func register(w http.ResponseWriter, r *http.Request) {
+	var request api.RegisterRequest
+	err := readRequest(r, &request)
+	if err != nil {
+		sendError(w, err.Error())
+		return
+	}
+	if !mailbox.TokenCanAdmin(request.Token) {
+		sendError(w, "Not allowed to register mailboxes.")
+		return
+	}
+	mb, err := mailbox.Create(request.Mailbox)
+	if err != nil {
+		sendError(w, err.Error())
+		return
+	}
+	token, err := mb.CreateToken()
+	if err != nil {
+		sendError(w, err.Error())
+		return
+	}
+	resp := api.RegisterResponse{
+		Mailbox:      mb.Id,
+		MailboxToken: token.Token,
+	}
+	writeResponse(&w, resp)
+	log.Infof("Mailbox %s registered.", mb.Id)
 }

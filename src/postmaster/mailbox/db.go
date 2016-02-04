@@ -48,6 +48,8 @@ func CreateDB() error {
 				response string,
 				respondedAt time
 			);
+			INSERT INTO accessToken (mailbox, token, name, fullAccess)
+			VALUES ("conduit.system", "SYSTEM", "conduit.system", false);
 			COMMIT;`)
 	return err
 }

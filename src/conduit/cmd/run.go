@@ -17,29 +17,38 @@ package cmd
 import (
 	"conduit/engine"
 	"conduit/log"
-	"conduit/queue"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"math"
+	"postmaster/client"
 	"time"
 )
 
 var s string
 var errorCount int
 
-// watchCmd represents the watch command
+// runCmd starts a Conduit client in polling mode. It will poll the server for
+// messages and evaluate message bodies as scripts.
 var runCmd = &cobra.Command{
 	Use:   "run",
 	Short: "Begin watching for commands.",
 	Long: `Start processing the command queue. Conduit will run and wait for a
 command to be delivered to it for processing.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		log.Info("Starting...")
+		log.Info("Waiting for messages...")
 
-		q := queue.New(viper.GetString("queue.host"), viper.GetString("mailbox"),
-			viper.GetString("access_key"))
+		client := client.Client{
+			Host:    viper.GetString("queue.host"),
+			Mailbox: viper.GetString("mailbox"),
+			Token:   viper.GetString("access_key"),
+		}
+
+		// Begin polling cycle
 		for {
-			script, err := q.Get()
+			resp, err := client.Get()
+
+			// If an error is returned by the client we will begin an exponential back
+			// off in retrying. The backoff caps out at 15 retries.
 			if err != nil {
 				log.Error(err.Error())
 				if errorCount < 15 {
@@ -48,26 +57,30 @@ command to be delivered to it for processing.`,
 				time.Sleep(time.Duration(math.Pow(float64(errorCount), 2)) * time.Second)
 				continue
 			}
+
+			// A response was received but it might be an empty response from the
+			// server timing out the long poll.
 			errorCount = 0
-			if script != nil {
+			if resp.Body != "" {
+				log.Infof("Script receieved (%s)", resp.Message)
 				eng := engine.New()
-				eng.Constant("DEPLOYMENT_ID", script.Deployment)
-				eng.Constant("SCRIPT_ID", script.Receipt)
-				err := eng.Execute(script.ScriptBody)
+				eng.Constant("DEPLOYMENT_ID", resp.Deployment)
+				eng.Constant("SCRIPT_ID", resp.Message)
+				executionStartTime := time.Now()
+				err := eng.Execute(resp.Body)
+				executionTime := time.Since(executionStartTime)
+				log.Infof("Script executed in %s", executionTime)
 				if err != nil {
-					log.Error("Error executing script " + script.Receipt)
-					log.Error(err.Error())
+					log.Error("Error executing script " + resp.Message)
 					log.Debug(err.Error())
 				}
-				err = q.Delete(script)
+				_, err = client.Delete(resp.Message)
 				if err != nil {
 					log.Error("Could not confirm script.")
 					log.Debug(err.Error())
 				} else {
-					// log.Info("Script confirmed: " + script.Receipt)
+					log.Debug("Script confirmed: " + resp.Message)
 				}
-			} else {
-				log.Info("No messages")
 			}
 		}
 	},

@@ -1,17 +1,22 @@
 package mailbox
 
 import (
+	"fmt"
 	"github.com/cznic/ql"
-	"github.com/nu7hatch/gouuid"
 	"time"
 )
 
-func GetOpenDeployments() ([]Deployment, error) {
-	resp, _, err := DB.Run(ql.NewRWCtx(), `
-		SELECT id, name, deployedAt, deployedBy, totalMessages
-		FROM deployment
-		WHERE open == true
-	`)
+func ListDeployments(name string, count int, token string) ([]Deployment, error) {
+	sql := fmt.Sprintf(`
+		SELECT deployment.id, deployment.name, deployment.deployedAt,
+			accessToken.name, deployment.totalMessages
+		FROM deployment, accessToken
+		WHERE deployment.name LIKE $1 AND deployment.deployedBy LIKE $2
+		AND accessToken.token == deployment.deployedBy
+		ORDER BY deployment.deployedAt
+		LIMIT %d
+		`, count)
+	resp, _, err := DB.Run(ql.NewRWCtx(), sql, name, token)
 	if err != nil {
 		return nil, err
 	}
@@ -20,9 +25,11 @@ func GetOpenDeployments() ([]Deployment, error) {
 		deployment := Deployment{
 			Id:            data[0].(string),
 			Name:          data[1].(string),
-			DeployedAt:    data[2].(time.Time),
 			DeployedBy:    data[3].(string),
 			TotalMessages: data[4].(int64),
+		}
+		if data[2] != nil {
+			deployment.DeployedAt = data[2].(time.Time)
 		}
 		deployments = append(deployments, deployment)
 		return true, nil
@@ -32,9 +39,10 @@ func GetOpenDeployments() ([]Deployment, error) {
 
 func FindDeployment(id string) (*Deployment, error) {
 	resp, _, err := DB.Run(ql.NewRWCtx(), `
-		SELECT id, name, deployedAt, deployedBy, open, messageBody
-		FROM deployment
-		WHERE id == $1;
+		SELECT deployment.id, deployment.name, deployment.deployedAt,
+			accessToken.name, deployment.open, deployment.messageBody
+		FROM deployment, accessToken
+		WHERE deployment.id == $1 AND accessToken.token == deployment.deployedBy;
 		SELECT count(*) FROM message WHERE deployment == $1;
 	`, id)
 	if err != nil {
@@ -45,10 +53,12 @@ func FindDeployment(id string) (*Deployment, error) {
 		deployment = &Deployment{
 			Id:          data[0].(string),
 			Name:        data[1].(string),
-			DeployedAt:  data[2].(time.Time),
 			DeployedBy:  data[3].(string),
 			Open:        data[4].(bool),
 			MessageBody: data[5].(string),
+		}
+		if data[2] != nil {
+			deployment.DeployedAt = data[2].(time.Time)
 		}
 		return false, nil
 	})
@@ -61,39 +71,6 @@ func FindDeployment(id string) (*Deployment, error) {
 	return deployment, nil
 }
 
-func CreateDeployment(name string, apiToken string,
-	message string) (*Deployment, error) {
-	id, err := uuid.NewV4()
-	if err != nil {
-		return nil, err
-	}
-	deploymentName := name
-	if name == "" {
-		deploymentName = id.String()
-	}
-	dp := &Deployment{
-		Id:         id.String(),
-		Name:       deploymentName,
-		DeployedBy: apiToken,
-		DeployedAt: time.Now(),
-		Open:       true,
-	}
-	_, _, err = DB.Run(ql.NewRWCtx(), `
-		BEGIN TRANSACTION;
-		INSERT INTO deployment (
-			id, name, deployedAt, deployedBy, totalMessages, open, messageBody
-		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7
-		);
-		COMMIT;
-	`, dp.Id, dp.Name, dp.DeployedAt, dp.DeployedBy, dp.TotalMessages, dp.Open,
-		message)
-	if err != nil {
-		return nil, err
-	}
-	return dp, nil
-}
-
 type Deployment struct {
 	Id            string
 	Name          string
@@ -104,12 +81,59 @@ type Deployment struct {
 	Open          bool
 }
 
+func (dp *Deployment) Save() error {
+	_, _, err := DB.Run(ql.NewRWCtx(), `
+		BEGIN TRANSACTION;
+		UPDATE deployment
+		SET name = $2, deployedAt = $3, deployedBy = $4, totalMessages = $5,
+			messageBody = $6
+		WHERE id == $1;
+		COMMIT;
+	`, dp.Id, dp.Name, dp.DeployedAt, dp.DeployedBy, dp.TotalMessages, dp.MessageBody)
+	return err
+}
+
+func (dp *Deployment) Create() error {
+	dp.Id = GenerateIdentifier()
+	if dp.Name == "" {
+		dp.Name = dp.Id
+	}
+
+	dp.DeployedAt = time.Now()
+
+	if dp.DeployedBy == "" {
+		dp.DeployedBy = "SYSTEM"
+	}
+
+	_, _, err := DB.Run(ql.NewRWCtx(), `
+		BEGIN TRANSACTION;
+		INSERT INTO deployment (id, name, deployedBy, totalMessages, messageBody, open, deployedAt)
+		VALUES ($1, $2, $3, 0, $4, true, $5);
+		COMMIT;
+	`, dp.Id, dp.Name, dp.DeployedBy, dp.MessageBody, dp.DeployedAt)
+	return err
+}
+
 func (dp *Deployment) GetName() string {
 	if dp.Name == "" {
 		return dp.Id
 	} else {
 		return dp.Name
 	}
+}
+
+func (dp *Deployment) Deploy(mb *Mailbox) (*Message, error) {
+	msg := &Message{
+		Id:         GenerateIdentifier(),
+		Mailbox:    mb.Id,
+		CreatedAt:  time.Now(),
+		Deployment: dp.Id,
+		Body:       dp.MessageBody,
+	}
+	err := msg.Create()
+	dp.TotalMessages++
+	err = dp.Save()
+	return msg, err
 }
 
 func (dp *Deployment) GetResponses() ([]DeploymentResponse, error) {
@@ -139,9 +163,6 @@ func (dp *Deployment) Stats() (*DeploymentStats, error) {
 		SELECT count(*)
 		FROM message
 		WHERE deployment == $1 AND deleted == false;
-		SELECT totalMessages
-		FROM deployment
-		WHERE id == $1;
 		SELECT count(*)
 		FROM deploymentResponse
 		WHERE deployment == $1;`, dp.Id)
@@ -154,13 +175,10 @@ func (dp *Deployment) Stats() (*DeploymentStats, error) {
 		return false, nil
 	})
 	resp[1].Do(false, func(data []interface{}) (bool, error) {
-		stats.MessageCount = data[0].(int64)
-		return false, nil
-	})
-	resp[2].Do(false, func(data []interface{}) (bool, error) {
 		stats.ResponseCount = data[0].(int64)
 		return false, nil
 	})
+	stats.MessageCount = dp.TotalMessages
 	return stats, nil
 }
 
