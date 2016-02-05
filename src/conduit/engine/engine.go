@@ -58,10 +58,12 @@ func New() *ScriptEngine {
 	fileObj.Set("mkdir", _file_mkdir)
 	fileObj.Set("delete", _file_delete)
 	fileObj.Set("readString", _file_readString)
+	fileObj.Set("eachFile", _file_eachFile)
 
-	requestObj, _ := vm.Object(`$request = {}`)
-	requestObj.Set("download", _request_download)
-	requestObj.Set("get", _request_get)
+	requestObj, _ := vm.Object(`$http = {}`)
+	requestObj.Set("download", _http_download)
+	requestObj.Set("get", _http_get)
+	requestObj.Set("post", _http_post)
 
 	systemObj, _ := vm.Object(`$system = {}`)
 	systemObj.Set("executeAndRead", _system_executeAndRead)
@@ -69,6 +71,12 @@ func New() *ScriptEngine {
 	systemObj.Set("detach", _system_detach)
 	systemObj.Set("currentUser", _system_currentUser)
 	systemObj.Set("kill", _system_kill)
+	systemObj.Set("env", _system_env)
+	systemObj.Set("expand", _system_expand)
+
+	zipObj, _ := vm.Object(`$zip = {}`)
+	zipObj.Set("compress", _zip_compress)
+	zipObj.Set("decompress", _zip_decompress)
 
 	vm.Set("$", _respond)
 	eng := &ScriptEngine{VM: vm}

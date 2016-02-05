@@ -3,6 +3,7 @@ package engine
 import (
 	"fmt"
 	"github.com/robertkrimen/otto"
+	"os"
 	"os/exec"
 	"os/user"
 )
@@ -68,4 +69,21 @@ func _system_currentUser(call otto.FunctionCall) otto.Value {
 		jsThrow(call, err)
 	}
 	return v
+}
+
+func _system_expand(call otto.FunctionCall) otto.Value {
+	str, _ := call.Argument(0).ToString()
+	eStr := os.ExpandEnv(str)
+	oStr, err := otto.ToValue(eStr)
+	if err != nil {
+		jsThrow(call, err)
+	}
+	return oStr
+}
+
+func _system_env(call otto.FunctionCall) otto.Value {
+	key, _ := call.Argument(0).ToString()
+	eStr := os.Getenv(key)
+	oStr, _ := otto.ToValue(eStr)
+	return oStr
 }

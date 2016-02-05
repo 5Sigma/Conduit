@@ -66,7 +66,7 @@ files.`,
 		time.Sleep(100 * time.Millisecond)
 		if err != nil {
 			log.Debug(err.Error())
-			log.Error("Could not get deployment statistics.")
+			log.Error("Could not get deployment results")
 			return
 		}
 		if len(stats.Responses) > 0 {

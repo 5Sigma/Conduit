@@ -5,3 +5,8 @@
 // $($system.executeAndRead("/bin/sh", ["-c", "df -h"]));
 
 
+try {
+  $zip.compress("test.js");
+} catch (err) {
+  console.log(err)
+}

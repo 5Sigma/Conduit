@@ -5,8 +5,10 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 )
 
+// fileExists is a helper function used by other file functions in the package.
 func fileExists(filepath string) bool {
 	if _, err := os.Stat(filepath); os.IsNotExist(err) {
 		return false
@@ -156,4 +158,20 @@ func _file_readString(call otto.FunctionCall) otto.Value {
 	}
 	v, _ := otto.ToValue(string(data))
 	return v
+}
+
+// _file_eachFile finds every file that matches a pattern and calls a passed
+// function for each file path.
+func _file_eachFile(call otto.FunctionCall) otto.Value {
+	pattern, _ := call.Argument(0).ToString()
+	f := call.Argument(1)
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		jsThrow(call, err)
+	}
+	for _, m := range matches {
+		om, _ := otto.ToValue(m)
+		f.Call(om, om)
+	}
+	return otto.Value{}
 }
