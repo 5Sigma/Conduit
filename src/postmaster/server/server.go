@@ -121,7 +121,6 @@ func getMessage(w http.ResponseWriter, r *http.Request) {
 		sendError(w, err.Error())
 		return
 	}
-	log.Infof("Message request from %s", request.Mailbox)
 
 	mb, err := mailbox.Find(request.Mailbox)
 	if err != nil {
