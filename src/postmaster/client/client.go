@@ -106,6 +106,16 @@ func (client *Client) Stats() (*api.SystemStatsResponse, error) {
 	return &response, nil
 }
 
+func (client *Client) ClientStatus() (map[string]bool, error) {
+	request := api.SimpleRequest{Token: client.Token}
+	var response api.ClientStatusResponse
+	err := client.request("stats/clients", request, &response)
+	if err != nil {
+		return nil, err
+	}
+	return response.Clients, nil
+}
+
 func (client *Client) ListDeploys(namePattern string, limitToken bool,
 	count int) (*api.DeploymentStatsResponse, error) {
 	request := api.DeploymentStatsRequest{

@@ -67,6 +67,10 @@ type SystemStatsResponse struct {
 	ConnectedClients int64 `json:"connectedClients"`
 }
 
+type ClientStatusResponse struct {
+	Clients map[string]bool `json:"clients"`
+}
+
 type DeploymentStatsRequest struct {
 	Token        string `json:"token"`
 	Deployment   string `json:"deploymentId"`

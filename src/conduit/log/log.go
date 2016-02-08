@@ -67,8 +67,31 @@ func Debug(msg string) {
 func Stats(name string, value interface{}) {
 	nameStr := fmt.Sprintf("%s:", name)
 	padding := strings.Repeat(" ", 20-len(nameStr))
-	str := fmt.Sprintln(nameStr, padding, chalk.Blue, value,
+	var valueStr = ""
+	switch value.(type) {
+	case int64:
+		valueStr = fmt.Sprintf("%d", value)
+	case string:
+		valueStr = value.(string)
+	}
+	str := fmt.Sprintf("%s %s %s %s %s", nameStr, padding, chalk.Blue, valueStr,
 		chalk.ResetColor)
+	write(str)
+}
+
+func Status(label, value string, success bool) {
+	var (
+		nameStr string
+		padding string
+	)
+	nameStr = fmt.Sprintf("%s:", label)
+	padding = strings.Repeat(" ", 20-len(nameStr))
+	if success {
+		value = chalk.Green.Color(value)
+	} else {
+		value = chalk.Red.Color(value)
+	}
+	str := nameStr + padding + value
 	write(str)
 }
 

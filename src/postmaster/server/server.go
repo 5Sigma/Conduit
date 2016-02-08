@@ -78,6 +78,7 @@ func Start(addr string) error {
 	}
 	endpoints.Add("POST", `/get`, getMessage)
 	endpoints.Add("POST", "/put", putMessage)
+	endpoints.Add("POST", "/stats/clients", clientStats)
 	endpoints.Add("POST", "/stats", systemStats)
 	endpoints.Add("POST", "/delete", deleteMessage)
 	endpoints.Add("POST", "/deploy/list", deployInfo)
@@ -310,6 +311,32 @@ func systemStats(w http.ResponseWriter, r *http.Request) {
 		ConnectedClients: int64(len(pollingChannels)),
 	}
 
+	writeResponse(&w, response)
+}
+
+func clientStats(w http.ResponseWriter, r *http.Request) {
+	var request api.SimpleRequest
+	err := readRequest(r, &request)
+	if err != nil {
+		sendError(w, "Bad request")
+	}
+	if !mailbox.TokenCanAdmin(request.Token) {
+		sendError(w, "Not allowed to get statistics")
+	}
+	clients := make(map[string]bool)
+	mbxs, err := mailbox.All()
+	if err != nil {
+		sendError(w, err.Error())
+		return
+	}
+	for _, mb := range mbxs {
+		if _, ok := pollingChannels[mb.Id]; ok {
+			clients[mb.Id] = true
+		} else {
+			clients[mb.Id] = false
+		}
+	}
+	response := api.ClientStatusResponse{Clients: clients}
 	writeResponse(&w, response)
 }
 
