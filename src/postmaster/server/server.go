@@ -84,6 +84,7 @@ func Start(addr string) error {
 	endpoints.Add("POST", "/deploy/list", deployInfo)
 	endpoints.Add("POST", "/deploy/respond", deployRespond)
 	endpoints.Add("POST", "/register", register)
+	endpoints.Add("POST", "/deregister", deregister)
 	http.Handle("/", &endpoints)
 	err := svr.ListenAndServe()
 	return err
@@ -486,4 +487,24 @@ func register(w http.ResponseWriter, r *http.Request) {
 	}
 	writeResponse(&w, resp)
 	log.Infof("Mailbox %s registered.", mb.Id)
+}
+
+func deregister(w http.ResponseWriter, r *http.Request) {
+	var request api.RegisterRequest
+	err := readRequest(r, &request)
+	if err != nil {
+		sendError(w, err.Error())
+		return
+	}
+	if !mailbox.TokenCanAdmin(request.Token) {
+		sendError(w, "Not allowed to deregister mailboxes")
+		return
+	}
+	err = mailbox.Deregister(request.Mailbox)
+	if err != nil {
+		sendError(w, err.Error())
+		return
+	}
+	resp := api.SimpleResponse{Success: true}
+	writeResponse(&w, resp)
 }

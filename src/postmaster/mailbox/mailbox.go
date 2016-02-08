@@ -92,6 +92,27 @@ func Create(id string) (*Mailbox, error) {
 	return mb, nil
 }
 
+func Deregister(id string) error {
+	mb, err := Find(id)
+	if err != nil {
+		return err
+	}
+	if mb == nil {
+		return errors.New("Mailbox not found")
+	}
+	_, _, err = DB.Run(ql.NewRWCtx(), `
+		BEGIN TRANSACTION;
+		DELETE FROM mailbox
+		WHERE id == $1;
+		DELETE FROM message
+		WHERE mailbox == $1;
+		DELETE FROM accessToken
+		WHERE mailbox ==  $1;
+		COMMIT;
+		`, mb.Id)
+	return err
+}
+
 // FindMessage will return a Message or nil for a given message identifier
 func FindMessage(msgId string) (*Message, error) {
 	rss, _, err := DB.Run(ql.NewRWCtx(), `

@@ -181,3 +181,12 @@ func (client *Client) RegisterMailbox(m string) (*api.RegisterResponse, error) {
 	err := client.request("register", request, &response)
 	return response, err
 }
+func (client *Client) DeregisterMailbox(m string) (*api.SimpleResponse, error) {
+	request := &api.RegisterRequest{
+		Token:   client.Token,
+		Mailbox: m,
+	}
+	var response *api.SimpleResponse
+	err := client.request("deregister", request, &response)
+	return response, err
+}
