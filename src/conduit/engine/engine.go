@@ -100,6 +100,7 @@ func New() *ScriptEngine {
 	fileObj, _ := vm.Object(`$file = {}`)
 	fileObj.Set("exists", _file_exists)
 	fileObj.Set("write", _file_write)
+	fileObj.Set("info", _file_info)
 	fileObj.Set("copy", _file_copy)
 	fileObj.Set("size", _file_size)
 	fileObj.Set("move", _file_move)
@@ -114,6 +115,7 @@ func New() *ScriptEngine {
 	requestObj.Set("post", _http_post)
 
 	systemObj, _ := vm.Object(`$system = {}`)
+	systemObj.Set("shell", _system_shell)
 	systemObj.Set("executeAndRead", _system_executeAndRead)
 	systemObj.Set("execute", _system_execute)
 	systemObj.Set("detach", _system_detach)
@@ -147,7 +149,7 @@ func getConstant(vm *otto.Otto, name string) string {
 func _respond(call otto.FunctionCall) otto.Value {
 	response, _ := call.Argument(0).ToString()
 	client := client.Client{
-		Host:  viper.GetString("queue.host"),
+		Host:  viper.GetString("host"),
 		Token: viper.GetString("access_key"),
 	}
 	messageId := getConstant(call.Otto, "SCRIPT_ID")

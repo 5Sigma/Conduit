@@ -38,7 +38,7 @@ command to be delivered to it for processing.`,
 		log.Info("Waiting for messages...")
 
 		client := client.Client{
-			Host:    viper.GetString("queue.host"),
+			Host:    viper.GetString("host"),
 			Mailbox: viper.GetString("mailbox"),
 			Token:   viper.GetString("access_key"),
 		}

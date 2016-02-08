@@ -30,7 +30,7 @@ var listCmd = &cobra.Command{
 made by your access key.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		client := client.Client{
-			Host:  viper.GetString("queue.host"),
+			Host:  viper.GetString("host"),
 			Token: viper.GetString("access_key"),
 		}
 		limitToken := (cmd.Flag("all").Value.String() == "false")

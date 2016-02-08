@@ -28,10 +28,10 @@ var serverCmd = &cobra.Command{
 	Long: `Run the conduit message server. To manage the server use the server sub
 commands. For help run 'conduit help server'.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		if viper.IsSet("queue.enable_long_polling") {
-			server.EnableLongPolling = viper.GetBool("queue.enable_long_polling")
+		if viper.IsSet("enable_long_polling") {
+			server.EnableLongPolling = viper.GetBool("enable_long_polling")
 		}
-		err := server.Start(viper.GetString("queue.host"))
+		err := server.Start(viper.GetString("host"))
 		fmt.Println("Could not start server:", err)
 	},
 }

@@ -1,12 +1,5 @@
-// var data = $file.readString("/mnt/qsposks/releases/20150601053041/dat/menuitem.dat")
-
-// $($system.executeAndRead("/bin/sh", ["-c", "ping -c 5 google.com"]));
-
-// $($system.executeAndRead("/bin/sh", ["-c", "df -h"]));
-
-
 try {
-  $zip.compress("test.js");
+  $(new Date($file.info("mailboxes.db").lastModified))
 } catch (err) {
   console.log(err)
 }

@@ -37,7 +37,7 @@ Use "conduit help server register" for more information.
 			log.Fatal("No mailbox identifier specified.")
 		}
 		client := client.Client{
-			Host:  viper.GetString("queue.host"),
+			Host:  viper.GetString("host"),
 			Token: viper.GetString("access_key"),
 		}
 		resp, err := client.RegisterMailbox(args[0])

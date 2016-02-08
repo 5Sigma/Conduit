@@ -135,6 +135,47 @@ func _file_mkdir(call otto.FunctionCall) otto.Value {
 	return otto.Value{}
 }
 
+//_file_info gathers path information.
+func _file_info(call otto.FunctionCall) otto.Value {
+	filepath, _ := call.Argument(0).ToString()
+
+	file, err := os.Open(filepath)
+	if err != nil {
+		jsThrow(call, err)
+	}
+	defer file.Close()
+
+	info, err := file.Stat()
+	if err != nil {
+		jsThrow(call, err)
+	}
+
+	obj, err := call.Otto.Object(`new Object()`)
+
+	if err != nil {
+		jsThrow(call, err)
+	}
+
+	size, _ := otto.ToValue(info.Size())
+
+	obj.Set("size", size)
+
+	modTime, err := otto.ToValue(info.ModTime().Unix())
+	if err != nil {
+		jsThrow(call, err)
+	}
+	obj.Set("lastModified", modTime)
+
+	name, _ := otto.ToValue(info.Name())
+	obj.Set("name", name)
+
+	isDir, _ := otto.ToValue(info.IsDir())
+	obj.Set("isDir", isDir)
+
+	objV, _ := otto.ToValue(obj)
+	return objV
+}
+
 //DELETE
 //deletes path/file and any children it contains
 func _file_delete(call otto.FunctionCall) otto.Value {

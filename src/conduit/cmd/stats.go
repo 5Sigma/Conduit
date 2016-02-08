@@ -15,7 +15,7 @@ var statsCmd = &cobra.Command{
 message count from the remote server.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		client := client.Client{
-			Host:  viper.GetString("queue.host"),
+			Host:  viper.GetString("host"),
 			Token: viper.GetString("access_key"),
 		}
 		stats, err := client.Stats()

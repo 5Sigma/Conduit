@@ -22,7 +22,7 @@ javascript file or a zip file containing a javascript file and other arbitrary
 files.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		client := client.Client{
-			Host:    viper.GetString("queue.host"),
+			Host:    viper.GetString("host"),
 			Mailbox: viper.GetString("mailbox"),
 			Token:   viper.GetString("access_key"),
 		}

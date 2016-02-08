@@ -174,3 +174,14 @@ func TestFileReadString(t *testing.T) {
 
 	defer os.Remove("test")
 }
+
+func TestFileInfo(t *testing.T) {
+	createTestFile()
+	defer os.Remove("test")
+	script := `if ($file.info("test").size != 4) {throw new Error();}`
+	eng := engine.New()
+	err := eng.Execute(script)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
