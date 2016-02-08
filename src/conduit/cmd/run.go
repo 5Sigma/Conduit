@@ -43,6 +43,8 @@ command to be delivered to it for processing.`,
 			Token:   viper.GetString("access_key"),
 		}
 
+		var persistantScripts = []*engine.ScriptEngine{}
+
 		// Begin polling cycle
 		for {
 			resp, err := client.Get()
@@ -66,6 +68,14 @@ command to be delivered to it for processing.`,
 				eng := engine.New()
 				eng.Constant("DEPLOYMENT_ID", resp.Deployment)
 				eng.Constant("SCRIPT_ID", resp.Message)
+
+				persistant, _ := eng.GetVar("$persistant", resp.Body)
+				if p, ok := persistant.(bool); ok {
+					if p {
+						persistantScripts = append(persistantScripts, eng)
+					}
+				}
+
 				executionStartTime := time.Now()
 				err := eng.Execute(resp.Body)
 				executionTime := time.Since(executionStartTime)

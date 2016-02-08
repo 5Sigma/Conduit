@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 	"postmaster/client"
+	"reflect"
 )
 
 type ScriptEngine struct {
@@ -52,6 +53,32 @@ func (eng *ScriptEngine) Validate(script string) error {
 	return err
 }
 
+func (eng *ScriptEngine) GetVar(name, script string) (interface{}, error) {
+	program, err := parser.ParseFile(nil, "", script, 0)
+	if err != nil {
+		return nil, err
+	}
+	for _, node := range program.Body {
+		fmt.Println("node", reflect.TypeOf(node))
+		if stmt, ok := node.(*ast.VariableStatement); ok {
+			fmt.Println("stmt", reflect.TypeOf(stmt))
+			fmt.Println("exp", reflect.TypeOf(stmt.List[0]))
+			if len(stmt.List) == 0 {
+				continue
+			}
+			if exp, ok := stmt.List[0].(*ast.VariableExpression); ok {
+				fmt.Println("init", reflect.TypeOf(exp.Initializer))
+				if literal, ok := exp.Initializer.(*ast.NumberLiteral); ok {
+					return literal.Value, nil
+				}
+				if literal, ok := exp.Initializer.(*ast.StringLiteral); ok {
+					return literal.Value, nil
+				}
+			}
+		}
+	}
+	return nil, nil
+}
 func getFunctionLiteral(name string, script string) (string, error) {
 	program, err := parser.ParseFile(nil, "", script, 0)
 	if err != nil {

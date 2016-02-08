@@ -33,3 +33,27 @@ func TestValidate(t *testing.T) {
 		t.Fatal("No error reported for bad syntax")
 	}
 }
+
+func TestGetStringVar(t *testing.T) {
+	script := ` var test = "test123"; `
+	eng := engine.New()
+	v, err := eng.GetVar("test", script)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v.(string) != "test123" {
+		t.Fatal("Return value not valid")
+	}
+}
+
+func TestGetNumberVar(t *testing.T) {
+	script := ` var test = 1`
+	eng := engine.New()
+	v, err := eng.GetVar("test", script)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v.(int64) != 1 {
+		t.Fatal("Return value not valid")
+	}
+}
