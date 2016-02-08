@@ -50,8 +50,10 @@ func initConfig() {
 		viper.SetConfigFile(cfgFile)
 	}
 
-	viper.SetConfigName(".conduit") // name of config file (without extension)
+	viper.SetConfigName("conduit")  // name of config file (without extension)
+	viper.AddConfigPath("./")       // adding home directory as first search path
 	viper.AddConfigPath("$HOME")    // adding home directory as first search path
+	viper.AddConfigPath(configPath) // adding home directory as first search path
 	viper.AutomaticEnv()            // read in environment variables that match
 
 	// If a config file is found, read it in.

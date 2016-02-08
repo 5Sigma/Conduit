@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"conduit/engine"
 	"conduit/log"
 	"github.com/gosuri/uiprogress"
 	"github.com/spf13/cobra"
@@ -37,6 +38,20 @@ files.`,
 		data, err := ioutil.ReadFile(filename)
 		if err != nil {
 			log.Fatal(err.Error())
+		}
+		eng := engine.New()
+		err = eng.Validate(string(data))
+		if err != nil {
+			log.Fatal("Bad script syntax")
+			log.Fatal(err.Error())
+		}
+		res, err := eng.ExecuteFunction("$local", string(data))
+		if err != nil {
+			log.Fatal("Local execution error")
+			log.Fatal(err.Error())
+		}
+		if res != "" && res != "undefined" {
+			log.Info("Local: " + res)
 		}
 		resp, err := client.Put(mailboxes, pattern, string(data),
 			cmd.Flag("name").Value.String())

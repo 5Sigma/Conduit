@@ -3,6 +3,9 @@ package engine
 import (
 	"fmt"
 	"github.com/robertkrimen/otto"
+	"github.com/robertkrimen/otto/ast"
+	"github.com/robertkrimen/otto/parser"
+	_ "github.com/robertkrimen/otto/underscore"
 	"github.com/spf13/viper"
 	"io/ioutil"
 	"os"
@@ -30,6 +33,7 @@ func (eng *ScriptEngine) ExecuteFile(filepath string) {
 //executes commands
 func (eng *ScriptEngine) Execute(script string) error {
 	_, err := eng.VM.Run(script)
+
 	return err
 }
 
@@ -41,6 +45,50 @@ func jsThrow(call otto.FunctionCall, err error) {
 func (eng *ScriptEngine) Constant(name, value string) {
 	eng.VM.Set(name, value)
 	eng.Constants[name] = value
+}
+
+func (eng *ScriptEngine) Validate(script string) error {
+	_, err := parser.ParseFile(nil, "", script, 0)
+	return err
+}
+
+func getFunctionLiteral(name string, script string) (string, error) {
+	program, err := parser.ParseFile(nil, "", script, 0)
+	if err != nil {
+		return "", err
+	}
+	for _, node := range program.Body {
+		if stmt, ok := node.(*ast.ExpressionStatement); ok {
+			if exp, ok := stmt.Expression.(*ast.AssignExpression); ok {
+				if left, ok := exp.Left.(*ast.Identifier); ok {
+					if _, ok := exp.Right.(*ast.FunctionLiteral); ok {
+						if left.Name == name {
+							return script[stmt.Idx0()-1 : stmt.Idx1()], nil
+						}
+					}
+				}
+			}
+		}
+	}
+	return fmt.Sprintf("%s = function() {};", name), nil
+}
+
+func (eng *ScriptEngine) ExecuteFunction(name, script string) (string, error) {
+	fStr, err := getFunctionLiteral(name, script)
+	fScript := fmt.Sprintf("%s; var result = %s();", fStr, name)
+	_, err = eng.VM.Run(fScript)
+	if err != nil {
+		return "", err
+	}
+	res, err := eng.VM.Get("result")
+	if err != nil {
+		return "", err
+	}
+	resStr, err := res.ToString()
+	if err != nil {
+		return "", err
+	}
+	return resStr, nil
 }
 
 func New() *ScriptEngine {
