@@ -3,7 +3,9 @@ package mailbox
 import (
 	"fmt"
 	"github.com/cznic/ql"
+	"github.com/kardianos/osext"
 	"os"
+	"path/filepath"
 )
 
 var DB *ql.DB
@@ -57,10 +59,13 @@ func CreateDB() error {
 func OpenDB() {
 	var err error
 	shouldCreate := false
-	if _, err := os.Stat("mailboxes.db"); os.IsNotExist(err) {
+	directory, _ := osext.ExecutableFolder()
+	path := filepath.Join(directory, "mailboxes.db")
+
+	if _, err := os.Stat(path); os.IsNotExist(err) {
 		shouldCreate = true
 	}
-	DB, err = ql.OpenFile("mailboxes.db", &ql.Options{CanCreate: true})
+	DB, err = ql.OpenFile(path, &ql.Options{CanCreate: true})
 	if err != nil {
 		fmt.Println("Could not open mailbox database.")
 		os.Exit(-1)

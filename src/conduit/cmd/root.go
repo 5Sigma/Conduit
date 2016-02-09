@@ -17,6 +17,7 @@ package cmd
 import (
 	"conduit/log"
 	"fmt"
+	"github.com/kardianos/osext"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"os"
@@ -50,10 +51,12 @@ func initConfig() {
 		viper.SetConfigFile(cfgFile)
 	}
 
+	exePath, _ := osext.ExecutableFolder()
 	viper.SetConfigName("conduit")  // name of config file (without extension)
 	viper.AddConfigPath("$HOME")    // adding home directory as first search path
 	viper.AddConfigPath("./")       // adding home directory as first search path
 	viper.AddConfigPath(configPath) // adding home directory as first search path
+	viper.AddConfigPath(exePath)    // adding home directory as first search path
 	viper.AutomaticEnv()            // read in environment variables that match
 
 	// If a config file is found, read it in.

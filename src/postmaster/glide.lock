@@ -1,38 +1,30 @@
-hash: 21b50e94941b73bb2bb4d2178ab30b7ad2a2c756628cb62e0033203bffed31d9
-updated: 2016-01-25T14:17:58.747317453-06:00
+hash: 01b81dfe903826ade4251fcb6a0489c565c57d1a1fccde3446a54df29e4925ef
+updated: 2016-02-08T20:01:02.472522243-06:00
 imports:
 - name: github.com/camlistore/lock
   version: 4d399211c3240cc6c38a714c55c83ed3bc78ebdf
-  repo: https://github.com/camlistore/lock
 - name: github.com/cznic/b
   version: 01b13d79526a9ce9aa2c6e11d6bd4540205e4c03
-  repo: https://github.com/cznic/b
 - name: github.com/cznic/bufs
   version: 3dcccbd7064a1689f9c093a988ea11ac00e21f51
-  repo: https://github.com/cznic/bufs
 - name: github.com/cznic/exp
   version: c21cce1fce3e6e5bc84854aa3d02a808de44229b
-  repo: https://github.com/cznic/exp
 - name: github.com/cznic/fileutil
   version: 1c9c88fbf552b3737c7b97e1f243860359687976
-  repo: https://github.com/cznic/fileutil
 - name: github.com/cznic/mathutil
   version: 38a5fe05cd94d69433fd1c928417834c604f281d
-  repo: https://github.com/cznic/mathutil
 - name: github.com/cznic/ql
   version: aeaeb4334c8cf0666173d53fd7a6cbc368aeafbf
 - name: github.com/cznic/sortutil
   version: 4c7342852e65c2088c981288f2c5610d10b9f7f4
-  repo: https://github.com/cznic/sortutil
 - name: github.com/cznic/strutil
   version: 1eb03e3cc9d345307a45ec82bd3016cde4bd4464
-  repo: https://github.com/cznic/strutil
 - name: github.com/cznic/zappy
   version: 47331054e4f96186e3ff772877c0443909368a45
-  repo: https://github.com/cznic/zappy
+- name: github.com/kardianos/osext
+  version: 29ae4ffbc9a6fe9fb2bc5029050ce6996ea1d3bc
 - name: github.com/nu7hatch/gouuid
   version: 179d4d0c4d8d407a32af483c2354df1d2c91e6c3
 - name: github.com/remyoudompheng/bigfft
   version: a8e77ddfb93284b9d58881f597c820a2875af336
-  repo: https://github.com/remyoudompheng/bigfft
 devImports: []
