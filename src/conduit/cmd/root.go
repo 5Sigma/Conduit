@@ -27,7 +27,7 @@ var cfgFile string
 
 var RootCmd = &cobra.Command{
 	Use:   "conduit",
-	Short: "Conduit v 1.0",
+	Short: "Conduit v" + version,
 	Long: `Conduit is a client/server package that allows command and management
 of resources using JavaScript based automation scripts.`,
 }
@@ -41,7 +41,7 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "",
-		"config file (default is $HOME/.conduit.yaml)")
+		"config file path.")
 	RootCmd.PersistentFlags().BoolVarP(&log.ShowDebug, "debug", "d", false,
 		"Print debug information")
 }
@@ -52,12 +52,11 @@ func initConfig() {
 	}
 
 	exePath, _ := osext.ExecutableFolder()
-	viper.SetConfigName("conduit")  // name of config file (without extension)
-	viper.AddConfigPath("$HOME")    // adding home directory as first search path
-	viper.AddConfigPath("./")       // adding home directory as first search path
-	viper.AddConfigPath(configPath) // adding home directory as first search path
-	viper.AddConfigPath(exePath)    // adding home directory as first search path
-	viper.AutomaticEnv()            // read in environment variables that match
+	wd, _ := os.Getwd()
+	viper.SetConfigName("conduit") // name of config file (without extension)
+	viper.AddConfigPath(wd)        // adding home directory as first search path
+	viper.AddConfigPath(exePath)   // adding home directory as first search path
+	viper.AutomaticEnv()           // read in environment variables that match
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
