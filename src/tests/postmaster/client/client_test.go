@@ -1,7 +1,6 @@
 package client
 
 import (
-	"conduit/log"
 	"os"
 	"postmaster/client"
 	"postmaster/mailbox"
@@ -11,10 +10,9 @@ import (
 
 var pmClient client.Client
 var mb *mailbox.Mailbox
-var token *mailbox.AccessToken
+var accessKey *mailbox.AccessKey
 
 func TestMain(m *testing.M) {
-	log.LogStdOut = false
 	// open database in memory for testing
 	mailbox.OpenMemDB()
 	mailbox.CreateDB()
@@ -23,13 +21,15 @@ func TestMain(m *testing.M) {
 	mb, _ = mailbox.Create("mb")
 
 	// create an access token for the default mailbox
-	token, _ = mailbox.CreateAPIToken("token")
+	accessKey = &mailbox.AccessKey{FullAccess: true}
+	accessKey.Create()
 
 	// create a postmasterClient
 	pmClient = client.Client{
-		Host:    "localhost:4111",
-		Mailbox: mb.Id,
-		Token:   token.Token,
+		Host:          "localhost:4111",
+		Mailbox:       mb.Id,
+		AccessKeyName: accessKey.Name,
+		AccessKey:     accessKey.Secret,
 	}
 
 	// Start up a test server to use
@@ -96,7 +96,7 @@ func TestResponse(t *testing.T) {
 	}
 	dep := &mailbox.Deployment{
 		Name:        "dep",
-		DeployedBy:  token.Token,
+		DeployedBy:  accessKey.Name,
 		MessageBody: "testMessage",
 	}
 	err = dep.Create()
@@ -107,7 +107,7 @@ func TestResponse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = pmClient.Respond(msg.Id, "testing repsonse")
+	err = pmClient.Respond(msg.Id, "testing repsonse", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +167,7 @@ func TestListDeploys(t *testing.T) {
 	}
 	dep := &mailbox.Deployment{
 		Name:        "dep",
-		DeployedBy:  token.Token,
+		DeployedBy:  accessKey.Name,
 		MessageBody: "test message",
 	}
 	err = dep.Create()
@@ -202,7 +202,7 @@ func TestDeploymentDetail(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = dep.AddResponse(mb.Id, "test repsonse")
+	err = dep.AddResponse(mb.Id, "test repsonse", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -217,6 +217,29 @@ func TestDeploymentDetail(t *testing.T) {
 	if len(resp.Deployments[0].Responses) == 0 {
 		t.Fatal("No deployment responses returned")
 	}
+}
+
+func TestRegisterMailbox(t *testing.T) {
+	resp, err := pmClient.RegisterMailbox("test.register")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.AccessKeyName != "test.register" {
+		t.Fatal("Acess key name is not mailbox name")
+	}
+}
+
+func TestDeregisterMailbox(t *testing.T) {
+	mb, _ := mailbox.Create("test.deregister")
+	_, err := pmClient.DeregisterMailbox(mb.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_mb, _ := mailbox.Find(mb.Id)
+	if _mb != nil {
+		t.Fatal("Mailbox not removed")
+	}
+
 }
 
 // BecnhMarkClientGet measures clients retrieving messages.

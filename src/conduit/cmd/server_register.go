@@ -35,13 +35,14 @@ var serverRegisterCmd = &cobra.Command{
 			log.Debug(err.Error())
 			log.Fatal("Could not create mailbox")
 		}
-		token, err := mb.CreateToken()
+		key := &mailbox.AccessKey{MailboxId: mb.Id}
+		err = key.Create()
 		if err != nil {
 			log.Debug(err.Error())
 			log.Fatal("Could not create mailbox access token")
 		}
 		log.Infof("Mailbox created: %s", mb.Id)
-		log.Infof("Access key created: %s", token.Token)
+		log.Infof("Access key created: %s", key.Secret)
 	},
 }
 

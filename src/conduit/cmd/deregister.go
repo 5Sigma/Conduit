@@ -17,8 +17,6 @@ package cmd
 import (
 	"conduit/log"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"postmaster/client"
 )
 
 // deregisterCmd represents the deregister command
@@ -30,11 +28,12 @@ var deregisterCmd = &cobra.Command{
 		if len(args) == 0 {
 			log.Fatal("No mailbox identifier specified.")
 		}
-		client := client.Client{
-			Host:  viper.GetString("host"),
-			Token: viper.GetString("access_key"),
+		client, err := ClientFromConfig()
+		if err != nil {
+			log.Debug(err.Error())
+			log.Fatal("Could not configure client")
 		}
-		_, err := client.DeregisterMailbox(args[0])
+		_, err = client.DeregisterMailbox(args[0])
 		if err != nil {
 			log.Debug(err.Error())
 			log.Fatal("Could not remove mailbox.")

@@ -17,8 +17,6 @@ package cmd
 import (
 	"conduit/log"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"postmaster/client"
 )
 
 // clientsCmd represents the clients command
@@ -27,9 +25,10 @@ var clientsCmd = &cobra.Command{
 	Short: "Get the status of all mailboxes.",
 	Long:  `Returns the connection status of all mailboxes.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := client.Client{
-			Host:  viper.GetString("host"),
-			Token: viper.GetString("access_key"),
+		client, err := ClientFromConfig()
+		if err != nil {
+			log.Debug(err.Error())
+			log.Fatal("Could not configure client")
 		}
 		stats, err := client.ClientStatus()
 		if err != nil {
@@ -39,11 +38,13 @@ var clientsCmd = &cobra.Command{
 		for mb, v := range stats {
 			var vStr = ""
 			if v {
-				vStr = "ONLINE"
+				vStr = "ONLINE "
 			} else {
 				vStr = "OFFLINE"
 			}
-			log.Status(mb, vStr, v)
+			if cmd.Flag("offline").Value.String() == "false" || !v {
+				log.Status(mb, vStr, v)
+			}
 		}
 	},
 }
@@ -61,4 +62,5 @@ func init() {
 	// is called directly, e.g.:
 	// clientsCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 
+	clientsCmd.Flags().BoolP("offline", "x", false, "Show only offline clients")
 }

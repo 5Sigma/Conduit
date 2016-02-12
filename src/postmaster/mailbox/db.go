@@ -48,7 +48,8 @@ func CreateDB() error {
 				deployment string,
 				mailbox string,
 				response string,
-				respondedAt time
+				respondedAt time,
+				isError bool
 			);
 			INSERT INTO accessToken (mailbox, token, name, fullAccess)
 			VALUES ("conduit.system", "SYSTEM", "conduit.system", false);
@@ -61,7 +62,6 @@ func OpenDB() {
 	shouldCreate := false
 	directory, _ := osext.ExecutableFolder()
 	path := filepath.Join(directory, "mailboxes.db")
-
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		shouldCreate = true
 	}

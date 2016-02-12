@@ -10,13 +10,14 @@ import (
 	"io/ioutil"
 	"os"
 	"postmaster/client"
-	"reflect"
 )
 
-type ScriptEngine struct {
-	VM        *otto.Otto
-	Constants map[string]string
-}
+type (
+	ScriptEngine struct {
+		VM        *otto.Otto
+		Constants map[string]string
+	}
+)
 
 //read javascript file and execute
 func (eng *ScriptEngine) ExecuteFile(filepath string) {
@@ -59,15 +60,11 @@ func (eng *ScriptEngine) GetVar(name, script string) (interface{}, error) {
 		return nil, err
 	}
 	for _, node := range program.Body {
-		fmt.Println("node", reflect.TypeOf(node))
 		if stmt, ok := node.(*ast.VariableStatement); ok {
-			fmt.Println("stmt", reflect.TypeOf(stmt))
-			fmt.Println("exp", reflect.TypeOf(stmt.List[0]))
 			if len(stmt.List) == 0 {
 				continue
 			}
 			if exp, ok := stmt.List[0].(*ast.VariableExpression); ok {
-				fmt.Println("init", reflect.TypeOf(exp.Initializer))
 				if literal, ok := exp.Initializer.(*ast.NumberLiteral); ok {
 					return literal.Value, nil
 				}
@@ -156,6 +153,7 @@ func New() *ScriptEngine {
 	zipObj.Set("decompress", _zip_decompress)
 
 	vm.Set("$", _respond)
+	vm.Set("$agent", _agent)
 	eng := &ScriptEngine{VM: vm}
 	eng.Constants = make(map[string]string)
 	return eng
@@ -176,11 +174,12 @@ func getConstant(vm *otto.Otto, name string) string {
 func _respond(call otto.FunctionCall) otto.Value {
 	response, _ := call.Argument(0).ToString()
 	client := client.Client{
-		Host:  viper.GetString("host"),
-		Token: viper.GetString("access_key"),
+		Host:          viper.GetString("host"),
+		AccessKey:     viper.GetString("access_key"),
+		AccessKeyName: viper.GetString("mailbox"),
 	}
 	messageId := getConstant(call.Otto, "SCRIPT_ID")
-	err := client.Respond(messageId, response)
+	err := client.Respond(messageId, response, false)
 	if err != nil {
 		jsThrow(call, err)
 	}

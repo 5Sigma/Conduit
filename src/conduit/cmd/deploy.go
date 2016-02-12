@@ -22,9 +22,11 @@ javascript file or a zip file containing a javascript file and other arbitrary
 files.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		client := client.Client{
-			Host:    viper.GetString("host"),
-			Mailbox: viper.GetString("mailbox"),
-			Token:   viper.GetString("access_key"),
+			Host:          viper.GetString("host"),
+			Mailbox:       viper.GetString("mailbox"),
+			AccessKey:     viper.GetString("access_key"),
+			AccessKeyName: viper.GetString("access_key_name"),
+			ShowRequests:  viper.GetBool("show_requests"),
 		}
 		if len(args) == 0 {
 			log.Fatal("No script specified.")
@@ -64,31 +66,44 @@ files.`,
 		}
 		log.Infof("Script deployed to %d mailboxes (%d bytes)",
 			len(resp.Mailboxes), len(data))
+
+		if cmd.Flag("no-results").Value.String() == "true" {
+			return
+		}
+
 		bar := uiprogress.AddBar(len(resp.Mailboxes))
 		bar.AppendCompleted()
 		bar.PrependElapsed()
 		uiprogress.Start()
+		var pollStart = time.Now()
 		stats, err := client.PollDeployment(resp.Deployment,
 			func(stats *api.DeploymentStats) bool {
 				messagesProcessed := stats.MessageCount - stats.PendingCount
 				bar.Set(int(messagesProcessed))
+				if time.Since(pollStart) > 10*time.Second {
+					return false
+				}
 				if stats.PendingCount == 0 {
 					return false
 				} else {
 					return true
 				}
 			})
-		time.Sleep(100 * time.Millisecond)
+		uiprogress.Stop()
 		if err != nil {
 			log.Debug(err.Error())
 			log.Error("Could not get deployment results")
 			return
 		}
 		if len(stats.Responses) > 0 {
-			log.Info("\nResponses:")
+			log.Alert("\nResponses:")
 		}
 		for _, r := range stats.Responses {
-			log.Infof("%s: %s", r.Mailbox, r.Response)
+			if r.IsError == true {
+				log.Errorf("%s: %s", r.Mailbox, r.Response)
+			} else {
+				log.Infof("%s: %s", r.Mailbox, r.Response)
+			}
 		}
 	},
 }
@@ -97,4 +112,5 @@ func init() {
 	RootCmd.AddCommand(deployCmd)
 	deployCmd.Flags().StringP("pattern", "p", "", "Wildcard search for mailboxes.")
 	deployCmd.Flags().StringP("name", "n", "", "Deployment name")
+	deployCmd.Flags().BoolP("no-results", "x", false, "Dont poll for responses.")
 }

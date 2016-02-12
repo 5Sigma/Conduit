@@ -9,6 +9,35 @@ import (
 	"time"
 )
 
+type (
+
+	// Mailboxes represent a bucket or queue of messages. Messages can be added to
+	// the mailbox through a deployment. Messages can be requested from the mailbox
+	// and one will be returned (with no garenteed ordering). Once the message has
+	// been processed it can be deleted from the mailbox.
+	//
+	// Mailboxes must have a unique Id, but this value can be anything unique. The
+	// system is designed with the idea of manually created and namespaced
+	// identifiers such as:
+	//
+	//		newton.maxwell.bohr
+	//
+	// This allows pattern searches to be intuitive such as:
+	//
+	//		newton.*.bohr
+	Mailbox struct {
+		Id                string
+		DeliveredMessages int64
+		LastDelivery      time.Time
+		LastRequest       time.Time
+	}
+
+	SystemStats struct {
+		MailboxCount    int64
+		PendingMessages int64
+	}
+)
+
 // GenerateIdentifier is used for generating various IDs. It is used to create
 // messageIds, deploymentIds, access tokens, etc.
 func GenerateIdentifier() string {
@@ -79,11 +108,8 @@ func Create(id string) (*Mailbox, error) {
 	}
 	_, _, err = DB.Run(ql.NewRWCtx(), `
 		BEGIN TRANSACTION;
-		INSERT INTO mailbox (
-			id
-		) VALUES (
-			$1
-		);
+		INSERT 	INTO mailbox ( id)
+		VALUES 	( $1);
 		COMMIT;
 		`, mb.Id)
 	if err != nil {
@@ -155,27 +181,6 @@ func Search(rawPattern string) ([]Mailbox, error) {
 		return true, nil
 	})
 	return mbxs, nil
-}
-
-// Mailboxes represent a bucket or queue of messages. Messages can be added to
-// the mailbox through a deployment. Messages can be requested from the mailbox
-// and one will be returned (with no garenteed ordering). Once the message has
-// been processed it can be deleted from the mailbox.
-//
-// Mailboxes must have a unique Id, but this value can be anything unique. The
-// system is designed with the idea of manually created and namespaced
-// identifiers such as:
-//
-//		newton.maxwell.bohr
-//
-// This allows pattern searches to be intuitive such as:
-//
-//		newton.*.bohr
-type Mailbox struct {
-	Id                string
-	DeliveredMessages int64
-	LastDelivery      time.Time
-	LastRequest       time.Time
 }
 
 // PutMessage will automatically generate a deployment and add a message to the
@@ -316,11 +321,6 @@ func (mb *Mailbox) MessageCount() (int64, error) {
 		return false, nil
 	})
 	return count, nil
-}
-
-type SystemStats struct {
-	MailboxCount    int64
-	PendingMessages int64
 }
 
 // Stats returns a SystemStats structure with overall message count information.

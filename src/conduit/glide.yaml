@@ -8,3 +8,5 @@ import:
 - package: github.com/ttacon/chalk
 - package: github.com/mattn/go-isatty
 - package: github.com/kardianos/osext
+- package: golang.org/x/sys/windows/svc
+- package: gopkg.in/elazarl/goproxy.v1

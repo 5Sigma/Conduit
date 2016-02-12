@@ -17,8 +17,6 @@ package cmd
 import (
 	"conduit/log"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"postmaster/client"
 	"strconv"
 )
 
@@ -29,9 +27,10 @@ var listCmd = &cobra.Command{
 	Long: `Lists past deployments, by default it will list the last 10 deployments
 made by your access key.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := client.Client{
-			Host:  viper.GetString("host"),
-			Token: viper.GetString("access_key"),
+		client, err := ClientFromConfig()
+		if err != nil {
+			log.Debug(err.Error())
+			log.Fatal("Could not configure client")
 		}
 		limitToken := (cmd.Flag("all").Value.String() == "false")
 		count, _ := strconv.ParseInt(cmd.Flag("count").Value.String(), 10, 64)
@@ -46,11 +45,11 @@ made by your access key.`,
 			log.Warn("There are no open deployments")
 		}
 		for _, dep := range resp.Deployments {
-			log.Infof("%s:", dep.Name)
+			log.Alertf("%s:", dep.Name)
 			log.Infof("   Deployed at: %s",
 				dep.CreatedAt.Format("01/02 03:04 PM"))
 			log.Infof("   Deployed by: %s", dep.DeployedBy)
-			log.Infof("   Processed scripts: %d/%d",
+			log.Infof("   Executions: %d/%d",
 				dep.MessageCount-dep.PendingCount, dep.MessageCount)
 			log.Infof("   Repsonses: %d/%d", dep.ResponseCount, dep.MessageCount)
 		}

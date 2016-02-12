@@ -34,11 +34,10 @@ func _file_write(call otto.FunctionCall) otto.Value {
 	}
 
 	file, err := os.OpenFile(filepath, os.O_APPEND|os.O_WRONLY, 0644)
+	defer file.Close()
 	if err != nil {
 		jsThrow(call, err)
 	}
-
-	defer file.Close()
 
 	_, err = file.WriteString(data)
 	if err != nil {

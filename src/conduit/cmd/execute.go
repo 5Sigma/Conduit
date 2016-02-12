@@ -27,11 +27,6 @@ var executeCmd = &cobra.Command{
 	Short: "Execute a script file.",
 	Long:  `Execute a Javascript file at the specified path.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("slave:", cmd.Flag("slave").Value.String())
-		fmt.Println("port:", cmd.Flag("port").Value.String())
-		if cmd.Flag("slave").Value.String() == "true" {
-			fmt.Println("Running in slave mode.")
-		}
 		if len(args) == 0 {
 			fmt.Println("No file specified.")
 			os.Exit(-1)

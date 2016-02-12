@@ -17,7 +17,7 @@ func _system_execute(call otto.FunctionCall) otto.Value {
 	if strings, ok := cmdArgs.([]string); ok {
 		commandStrings = strings
 	}
-	if err := exec.Command(cmdName, commandStrings...).Run(); err != nil {
+	if err := exec.Command(cmdName, commandStrings...).Start(); err != nil {
 		if throw != "false" {
 			jsThrow(call, err)
 		}

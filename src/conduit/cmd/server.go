@@ -15,6 +15,7 @@
 package cmd
 
 import (
+	"conduit/log"
 	"fmt"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -31,6 +32,7 @@ commands. For help run 'conduit help server'.`,
 		if viper.IsSet("enable_long_polling") {
 			server.EnableLongPolling = viper.GetBool("enable_long_polling")
 		}
+		log.LogFile = true
 		err := server.Start(viper.GetString("host"))
 		fmt.Println("Could not start server:", err)
 	},

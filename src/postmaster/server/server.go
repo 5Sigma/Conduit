@@ -29,6 +29,8 @@ var EnableLongPolling = true
 // artificially throttle the connect and reconnects from the clients.
 var ThrottleDelay = 500 * time.Millisecond
 
+var serverRunning = false
+
 type EndPoint struct {
 	Method  string
 	Regex   *regexp.Regexp
@@ -61,6 +63,10 @@ func (h *EndPointHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func Start(addr string) error {
+	if serverRunning == true {
+		return nil
+	}
+
 	if mailbox.DB == nil {
 		mailbox.OpenDB()
 		if _, err := os.Stat("mailboxes.db"); os.IsNotExist(err) {
@@ -86,6 +92,7 @@ func Start(addr string) error {
 	endpoints.Add("POST", "/register", register)
 	endpoints.Add("POST", "/deregister", deregister)
 	http.Handle("/", &endpoints)
+	serverRunning = true
 	err := svr.ListenAndServe()
 	return err
 }
@@ -124,6 +131,8 @@ func getMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Info("Message request for " + request.Mailbox)
+
 	mb, err := mailbox.Find(request.Mailbox)
 	if err != nil {
 		sendError(w, err.Error())
@@ -131,11 +140,24 @@ func getMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if mb == nil {
+		log.Errorf("Could not find a mailbox named '%s'", request.Mailbox)
 		sendError(w, fmt.Sprintf("Mailbox %s not found.", request.Mailbox))
 		return
 	}
 
-	if !mailbox.TokenCanGet(request.Token, mb.Id) {
+	accessKey, err := mailbox.FindKeyByName(request.AccessKeyName)
+	if accessKey == nil {
+		log.Errorf("Could not find an access key named '%s'", request.AccessKeyName)
+		sendError(w, "Access key is invalid")
+		return
+	}
+
+	if !request.Validate(accessKey.Secret) {
+		sendError(w, "Signature is invalid")
+		return
+	}
+
+	if !accessKey.CanGet(mb) {
 		sendError(w, "Not allowed to get messages from this mailbox.")
 		return
 	}
@@ -176,7 +198,7 @@ func getMessage(w http.ResponseWriter, r *http.Request) {
 		ReceiveCount: msg.ReceiveCount,
 		Deployment:   msg.Deployment,
 	}
-
+	response.Sign(accessKey.Name, accessKey.Secret)
 	log.Infof("Delivering message %s", response.Message)
 
 	writeResponse(&w, response)
@@ -230,7 +252,7 @@ func putMessage(w http.ResponseWriter, r *http.Request) {
 
 	dep := mailbox.Deployment{
 		Name:        request.DeploymentName,
-		DeployedBy:  request.Token,
+		DeployedBy:  request.AccessKeyName,
 		MessageBody: request.Body,
 	}
 
@@ -241,8 +263,19 @@ func putMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	accessKey, err := mailbox.FindKeyByName(request.AccessKeyName)
+	if err != nil || accessKey == nil {
+		sendError(w, "Access key is invalid")
+		return
+	}
+
+	if !request.Validate(accessKey.Secret) {
+		sendError(w, "Signature not valid")
+		return
+	}
+
 	for _, mb := range mailboxes {
-		if !mailbox.TokenCanPut(request.Token, mb.Id) {
+		if !accessKey.CanPut(&mb) {
 			sendError(w, "Not allowed to send messages to "+mb.Id)
 			return
 		}
@@ -263,8 +296,10 @@ func putMessage(w http.ResponseWriter, r *http.Request) {
 		Mailboxes:   mbList,
 		Deployment:  dep.Id,
 	}
+	resp.Sign(accessKey.Name, accessKey.Secret)
 
-	log.Infof("Message received for %d mailboxes", len(mbList))
+	log.Infof("Message received for %d mailboxes from %s", len(mbList),
+		dep.DeployedBy)
 	writeResponse(&w, resp)
 }
 
@@ -275,12 +310,25 @@ func deleteMessage(w http.ResponseWriter, r *http.Request) {
 		sendError(w, "Could not parse json request")
 		return
 	}
+
+	accessKey, _ := mailbox.FindKeyByName(request.AccessKeyName)
+	if accessKey == nil {
+		sendError(w, "Access key invalid")
+		return
+	}
+
+	if !request.Validate(accessKey.Secret) {
+		sendError(w, "Signature is invalid")
+		return
+	}
+
 	err = mailbox.DeleteMessage(request.Message)
 	if err != nil {
 		sendError(w, "Could not delete message")
 		return
 	}
 	resp := api.DeleteMessageResponse{Message: request.Message}
+	resp.Sign(accessKey.Name, accessKey.Secret)
 	log.Infof("Message %s deleted", request.Message)
 	writeResponse(&w, resp)
 }
@@ -295,8 +343,20 @@ func systemStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !mailbox.TokenCanAdmin(request.Token) {
+	accessKey, _ := mailbox.FindKeyByName(request.AccessKeyName)
+
+	if accessKey == nil {
+		sendError(w, "Access key is invalid")
+		return
+	}
+
+	if !accessKey.CanAdmin() {
 		sendError(w, "Not allowed to get statistics")
+		return
+	}
+
+	if !request.Validate(accessKey.Secret) {
+		sendError(w, "Could not validate signature")
 		return
 	}
 
@@ -311,7 +371,7 @@ func systemStats(w http.ResponseWriter, r *http.Request) {
 		PendingMessages:  stats.PendingMessages,
 		ConnectedClients: int64(len(pollingChannels)),
 	}
-
+	response.Sign(accessKey.Name, accessKey.Secret)
 	writeResponse(&w, response)
 }
 
@@ -321,9 +381,23 @@ func clientStats(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		sendError(w, "Bad request")
 	}
-	if !mailbox.TokenCanAdmin(request.Token) {
-		sendError(w, "Not allowed to get statistics")
+
+	accessKey, err := mailbox.FindKeyByName(request.AccessKeyName)
+	if err != nil || accessKey == nil {
+		sendError(w, "Access key is invalid")
+		return
 	}
+
+	if !accessKey.CanAdmin() {
+		sendError(w, "Not allowed to get statistics")
+		return
+	}
+
+	if !request.Validate(accessKey.Secret) {
+		sendError(w, "Could not validate signature")
+		return
+	}
+
 	clients := make(map[string]bool)
 	mbxs, err := mailbox.All()
 	if err != nil {
@@ -338,6 +412,7 @@ func clientStats(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	response := api.ClientStatusResponse{Clients: clients}
+	response.Sign(accessKey.Name, accessKey.Secret)
 	writeResponse(&w, response)
 }
 
@@ -348,24 +423,37 @@ func deployInfo(w http.ResponseWriter, r *http.Request) {
 		sendError(w, "Could not parse request")
 		return
 	}
+
 	if request.NamePattern == "" {
 		request.NamePattern = ".*"
 	}
 
-	if !mailbox.TokenCanAdmin(request.Token) {
+	if request.TokenPattern == "" {
+		request.TokenPattern = ".*"
+	}
+
+	accessKey, err := mailbox.FindKeyByName(request.AccessKeyName)
+	if err != nil || accessKey == nil {
+		sendError(w, "Access key is invalid")
+		return
+	}
+	if !accessKey.CanAdmin() {
 		sendError(w, "Not allowed to list deployments")
+		return
+	}
+	if !request.Validate(accessKey.Secret) {
+		sendError(w, "Signature invalid")
 		return
 	}
 	response := api.DeploymentStatsResponse{}
 	if request.Deployment == "" {
-		log.Info("Listing all deploys")
+		log.Infof("Listing all deploys for %s", accessKey.Name)
 		deployments, err := mailbox.ListDeployments(request.NamePattern,
 			int(request.Count), request.TokenPattern)
 		if err != nil {
 			sendError(w, err.Error())
 			return
 		}
-		fmt.Println(request.TokenPattern)
 		for _, d := range deployments {
 			dStats, err := d.Stats()
 			if err != nil {
@@ -389,6 +477,12 @@ func deployInfo(w http.ResponseWriter, r *http.Request) {
 			sendError(w, err.Error())
 			return
 		}
+
+		if dep == nil {
+			sendError(w, "Deployment not found")
+			return
+		}
+
 		dStats, err := dep.Stats()
 		if err != nil {
 			sendError(w, err.Error())
@@ -413,30 +507,57 @@ func deployInfo(w http.ResponseWriter, r *http.Request) {
 				Mailbox:     r.Mailbox,
 				Response:    r.Response,
 				RespondedAt: r.RespondedAt,
+				IsError:     r.IsError,
 			}
 			statsResp.Responses = append(statsResp.Responses, apiR)
 		}
 		response.Deployments = append(response.Deployments, statsResp)
 	}
+	response.Sign(accessKey.Name, accessKey.Secret)
 	writeResponse(&w, response)
 }
 
 func deployRespond(w http.ResponseWriter, r *http.Request) {
 	var request api.ResponseRequest
 	err := readRequest(r, &request)
+
 	if err != nil {
 		sendError(w, "Could not parse request")
 		return
 	}
+	accessKey, err := mailbox.FindKeyByName(request.AccessKeyName)
+	if accessKey == nil {
+		sendError(w, "Access key is not valid")
+		return
+	}
+
+	if !request.Validate(accessKey.Secret) {
+		sendError(w, "Could not validate signature")
+		return
+	}
+
 	msg, err := mailbox.FindMessage(request.Message)
 	if err != nil {
 		sendError(w, err.Error())
 		return
 	}
+
 	if msg == nil {
 		sendError(w, "Could not find message "+request.Message)
 		return
 	}
+
+	mb, err := mailbox.Find(msg.Mailbox)
+	if err != nil {
+		sendError(w, err.Error())
+		return
+	}
+
+	if mb == nil {
+		sendError(w, "Mailbox not found")
+		return
+	}
+
 	dep, err := mailbox.FindDeployment(msg.Deployment)
 	if err != nil {
 		sendError(w, err.Error())
@@ -446,16 +567,17 @@ func deployRespond(w http.ResponseWriter, r *http.Request) {
 		sendError(w, "Could not find deployment "+msg.Deployment)
 		return
 	}
-	if !mailbox.TokenCanGet(request.Token, msg.Mailbox) {
+	if !accessKey.CanGet(mb) {
 		sendError(w, "Not allowed to respond to deploys")
 		return
 	}
-	err = dep.AddResponse(msg.Mailbox, request.Response)
+	err = dep.AddResponse(msg.Mailbox, request.Response, request.Error)
 	if err != nil {
 		sendError(w, err.Error())
 		return
 	}
 	response := api.SimpleResponse{Success: true}
+	response.Sign(accessKey.Name, accessKey.Secret)
 	log.Infof("Reponse added to %s from %s", dep.Id, msg.Mailbox)
 	writeResponse(&w, response)
 }
@@ -467,24 +589,50 @@ func register(w http.ResponseWriter, r *http.Request) {
 		sendError(w, err.Error())
 		return
 	}
-	if !mailbox.TokenCanAdmin(request.Token) {
+
+	accessKey, err := mailbox.FindKeyByName(request.AccessKeyName)
+	if accessKey == nil {
+		sendError(w, "Access key is invalid")
+		return
+	}
+
+	if !request.Validate(accessKey.Secret) {
+		sendError(w, "Could not validate signature")
+		return
+	}
+
+	if !accessKey.CanAdmin() {
 		sendError(w, "Not allowed to register mailboxes.")
 		return
 	}
+
+	if mailbox.KeyExists(request.Mailbox) {
+		sendError(w, "An access key already exists with that mailbox name")
+		return
+	}
+
 	mb, err := mailbox.Create(request.Mailbox)
 	if err != nil {
 		sendError(w, err.Error())
 		return
 	}
-	token, err := mb.CreateToken()
+
+	mbKey := &mailbox.AccessKey{
+		MailboxId: mb.Id,
+	}
+
+	err = mbKey.Create()
 	if err != nil {
 		sendError(w, err.Error())
 		return
 	}
+
 	resp := api.RegisterResponse{
-		Mailbox:      mb.Id,
-		MailboxToken: token.Token,
+		Mailbox:         mb.Id,
+		AccessKeyName:   mbKey.Name,
+		AccessKeySecret: mbKey.Secret,
 	}
+	resp.Sign(accessKey.Name, accessKey.Secret)
 	writeResponse(&w, resp)
 	log.Infof("Mailbox %s registered.", mb.Id)
 }
@@ -496,7 +644,16 @@ func deregister(w http.ResponseWriter, r *http.Request) {
 		sendError(w, err.Error())
 		return
 	}
-	if !mailbox.TokenCanAdmin(request.Token) {
+	accessKey, _ := mailbox.FindKeyByName(request.AccessKeyName)
+	if accessKey == nil {
+		sendError(w, "Access key is invalid")
+		return
+	}
+	if !request.Validate(accessKey.Secret) {
+		sendError(w, "Could not validate signature")
+		return
+	}
+	if !accessKey.CanAdmin() {
 		sendError(w, "Not allowed to deregister mailboxes")
 		return
 	}
@@ -506,5 +663,6 @@ func deregister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resp := api.SimpleResponse{Success: true}
+	resp.Sign(accessKey.Name, accessKey.Secret)
 	writeResponse(&w, resp)
 }

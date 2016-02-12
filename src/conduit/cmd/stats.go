@@ -3,20 +3,20 @@ package cmd
 import (
 	"conduit/log"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"postmaster/client"
 )
 
 // statsCmd represents the stats command
 var statsCmd = &cobra.Command{
-	Use:   "stats",
-	Short: "Retrieve system statistics from the server",
+	Use:     "stats",
+	Short:   "Retrieve system statistics from the server",
+	Aliases: []string{"info"},
 	Long: `Gathers system statistics such as connected clients, and pending
 message count from the remote server.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := client.Client{
-			Host:  viper.GetString("host"),
-			Token: viper.GetString("access_key"),
+		client, err := ClientFromConfig()
+		if err != nil {
+			log.Debug(err.Error())
+			log.Fatal("Could not configure client")
 		}
 		stats, err := client.Stats()
 		if err != nil {

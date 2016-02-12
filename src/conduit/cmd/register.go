@@ -17,8 +17,6 @@ package cmd
 import (
 	"conduit/log"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"postmaster/client"
 )
 
 // registerCmd represents the register command
@@ -36,9 +34,10 @@ Use "conduit help server register" for more information.
 		if len(args) == 0 {
 			log.Fatal("No mailbox identifier specified.")
 		}
-		client := client.Client{
-			Host:  viper.GetString("host"),
-			Token: viper.GetString("access_key"),
+		client, err := ClientFromConfig()
+		if err != nil {
+			log.Debug(err.Error())
+			log.Fatal("Could not configure client")
 		}
 		resp, err := client.RegisterMailbox(args[0])
 		if err != nil {
@@ -46,7 +45,7 @@ Use "conduit help server register" for more information.
 			log.Fatal("Could not register mailbox.")
 		}
 		log.Infof("Mailbox registered: %s", resp.Mailbox)
-		log.Infof("Access key generated: %s", resp.MailboxToken)
+		log.Infof("Access key: %s", resp.AccessKeySecret)
 	},
 }
 

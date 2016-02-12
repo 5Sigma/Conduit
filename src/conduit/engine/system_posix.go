@@ -8,6 +8,8 @@ import (
 	"syscall"
 )
 
+//executes a program
+
 func _system_kill(call otto.FunctionCall) otto.Value {
 	processName, _ := call.Argument(0).ToString()
 	commandStrings := []string{processName}

@@ -2,7 +2,6 @@ package server
 
 import (
 	"bytes"
-	"conduit/log"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -14,27 +13,28 @@ import (
 )
 
 type TestDeployment struct {
-	Token      *mailbox.AccessToken
+	AccessKey  *mailbox.AccessKey
 	Deployment *mailbox.Deployment
 	Mailbox    *mailbox.Mailbox
 	Message    *mailbox.Message
 }
 
 func generateDeployment() (*TestDeployment, error) {
-	token, err := mailbox.CreateAPIToken(mailbox.GenerateIdentifier())
+	mb, err := mailbox.Create(mailbox.GenerateIdentifier())
+	if err != nil {
+		return nil, err
+	}
+	accessKey := &mailbox.AccessKey{MailboxId: mb.Id}
+	err = accessKey.Create()
 	if err != nil {
 		return nil, err
 	}
 	deployment := &mailbox.Deployment{
 		MessageBody: mailbox.GenerateIdentifier(),
 		Name:        mailbox.GenerateIdentifier(),
-		DeployedBy:  token.Token,
+		DeployedBy:  accessKey.Name,
 	}
 	err = deployment.Create()
-	if err != nil {
-		return nil, err
-	}
-	mb, err := mailbox.Create(mailbox.GenerateIdentifier())
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func generateDeployment() (*TestDeployment, error) {
 		return nil, err
 	}
 	return &TestDeployment{
-		Token:      token,
+		AccessKey:  accessKey,
 		Deployment: deployment,
 		Mailbox:    mb,
 		Message:    msg,
@@ -71,7 +71,6 @@ func TestMain(m *testing.M) {
 
 	server.EnableLongPolling = false
 	server.ThrottleDelay = 0
-	log.LogStdOut = false
 
 	go server.Start(":4111")
 
@@ -82,8 +81,12 @@ func TestMain(m *testing.M) {
 }
 
 func TestGet(t *testing.T) {
-	dep, _ := generateDeployment()
-	req := api.GetMessageRequest{Mailbox: dep.Mailbox.Id, Token: dep.Token.Token}
+	dep, err := generateDeployment()
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := api.GetMessageRequest{Mailbox: dep.Mailbox.Id}
+	req.Sign(dep.AccessKey.Name, dep.AccessKey.Secret)
 	var resp api.GetMessageResponse
 	doRequest(t, req, &resp, "get")
 	if resp.Body != dep.Message.Body {
@@ -99,13 +102,13 @@ func TestGet(t *testing.T) {
 	}
 }
 
-func TestGetBadToken(t *testing.T) {
+func TestGetBadSignature(t *testing.T) {
 	mb, err := mailbox.Create("get.badtoken")
 	if err != nil {
 		t.Fatal(err)
 	}
 	mb.PutMessage("TEST")
-	req := api.GetMessageRequest{Mailbox: mb.Id, Token: "BADTOKEN"}
+	req := api.GetMessageRequest{Mailbox: mb.Id}
 	var resp api.GetMessageResponse
 	code := doRequest(t, req, &resp, "get")
 	if code == 200 {
@@ -114,17 +117,24 @@ func TestGetBadToken(t *testing.T) {
 }
 
 func TestPut(t *testing.T) {
-	mb1, _ := mailbox.Create("put1")
-	mb2, _ := mailbox.Create("put2")
-	token, _ := mailbox.CreateAPIToken("test")
+	mb1, err := mailbox.Create("put1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mb2, err := mailbox.Create("put2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	accessKey := mailbox.AccessKey{FullAccess: true}
+	accessKey.Create()
 	req := api.PutMessageRequest{
-		Token: token.Token,
 		Mailboxes: []string{
 			mb1.Id,
 			mb2.Id,
 		},
 		Body: "TEST",
 	}
+	req.Sign(accessKey.Name, accessKey.Secret)
 	var resp api.PutMessageResponse
 	code := doRequest(t, req, &resp, "put")
 	count, err := mb1.MessageCount()
@@ -165,12 +175,13 @@ func TestPut(t *testing.T) {
 
 func TestPutBadToken(t *testing.T) {
 	mb, _ := mailbox.Create("puttest.badtoken")
-	token, _ := mb.CreateToken()
+	accessKey := mailbox.AccessKey{MailboxId: mb.Id}
+	accessKey.Create()
 	req := api.PutMessageRequest{
 		Mailboxes: []string{mb.Id},
 		Body:      "TEST MESSAGE",
-		Token:     token.Token,
 	}
+	req.Sign(accessKey.Name, accessKey.Secret)
 	var resp api.PutMessageResponse
 	code := doRequest(t, req, &resp, "put")
 	if code == 200 {
@@ -180,8 +191,10 @@ func TestPutBadToken(t *testing.T) {
 
 func TestPutByPattern(t *testing.T) {
 	mb, _ := mailbox.Create("PATTERN")
-	token, _ := mailbox.CreateAPIToken("test")
-	req := api.PutMessageRequest{Pattern: "P*", Token: token.Token}
+	accessKey := mailbox.AccessKey{FullAccess: true}
+	accessKey.Create()
+	req := api.PutMessageRequest{Pattern: "P*"}
+	req.Sign(accessKey.Name, accessKey.Secret)
 	var resp api.PutMessageResponse
 	code := doRequest(t, req, &resp, "put")
 	count, err := mb.MessageCount()
@@ -207,7 +220,10 @@ func TestDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	key := mailbox.AccessKey{MailboxId: mb.Id}
+	key.Create()
 	req := api.DeleteMessageRequest{Message: msg.Id}
+	req.Sign(key.Name, key.Secret)
 	resp := api.DeleteMessageResponse{}
 
 	statusCode := doRequest(t, req, &resp, "delete")
@@ -236,11 +252,10 @@ func TestBadMailbox(t *testing.T) {
 
 func TestSystemStats(t *testing.T) {
 	mailbox.Create("stats.systemtest")
-	token, err := mailbox.CreateAPIToken("systemstatstoken")
-	if err != nil {
-		t.Fatal(err)
-	}
-	req := api.SimpleRequest{Token: token.Token}
+	req := api.SimpleRequest{}
+	accessKey := mailbox.AccessKey{FullAccess: true}
+	accessKey.Create()
+	req.Sign(accessKey.Name, accessKey.Secret)
 	var resp api.SystemStatsResponse
 	code := doRequest(t, req, &resp, "stats")
 	if code != 200 {
@@ -250,17 +265,12 @@ func TestSystemStats(t *testing.T) {
 
 func TestDeployInfoList(t *testing.T) {
 	mb, _ := mailbox.Create("stats.deployinfo")
-	token, err := mailbox.CreateAPIToken("stats.deployinfo")
 	mb.PutMessage("test")
 	mb.PutMessage("test2")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	req := api.DeploymentStatsRequest{
-		Token: token.Token,
-		Count: 2,
-	}
+	key := mailbox.AccessKey{FullAccess: true}
+	key.Create()
+	req := api.DeploymentStatsRequest{Count: 2}
+	req.Sign(key.Name, key.Secret)
 	var resp api.DeploymentStatsResponse
 	code := doRequest(t, req, &resp, "deploy/list")
 	if code != 200 {
@@ -272,7 +282,9 @@ func TestDeployInfoList(t *testing.T) {
 }
 
 func TestDeployInfoListByToken(t *testing.T) {
-	dep1, err := generateDeployment()
+	_, err := generateDeployment()
+	key := mailbox.AccessKey{FullAccess: true}
+	key.Create()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -281,10 +293,10 @@ func TestDeployInfoListByToken(t *testing.T) {
 		t.Fatal(err)
 	}
 	req := api.DeploymentStatsRequest{
-		Token:        dep1.Token.Token,
 		Count:        2,
-		TokenPattern: dep2.Token.Token,
+		TokenPattern: dep2.AccessKey.Name,
 	}
+	req.Sign(key.Name, key.Secret)
 	var resp api.DeploymentStatsResponse
 	code := doRequest(t, req, &resp, "deploy/list")
 	if code != 200 {
@@ -307,12 +319,13 @@ func TestDeployListByName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	key := mailbox.AccessKey{FullAccess: true}
+	key.Create()
 	req := api.DeploymentStatsRequest{
-		Token:       deployment1.Token.Token,
 		Count:       10,
 		NamePattern: "t*t",
 	}
+	req.Sign(key.Name, key.Secret)
 
 	var resp api.DeploymentStatsResponse
 	code := doRequest(t, req, &resp, "deploy/list")
@@ -325,14 +338,10 @@ func TestDeployListByName(t *testing.T) {
 }
 
 func TestRegister(t *testing.T) {
-	token, err := mailbox.CreateAPIToken("tesT")
-	if err != nil {
-		t.Fatal(err)
-	}
-	req := api.RegisterRequest{
-		Token:   token.Token,
-		Mailbox: "register.test",
-	}
+	key := mailbox.AccessKey{FullAccess: true}
+	key.Create()
+	req := api.RegisterRequest{Mailbox: "register.test"}
+	req.Sign(key.Name, key.Secret)
 	var resp api.RegisterResponse
 	code := doRequest(t, req, &resp, "register")
 	if code != 200 {
@@ -345,7 +354,7 @@ func TestRegister(t *testing.T) {
 	if mb == nil {
 		t.Fatal("Mailbox not registered")
 	}
-	if !mailbox.TokenCanGet(token.Token, mb.Id) {
-		t.Fatal("Token not bound to mailbox")
+	if !key.CanGet(mb) {
+		t.Fatal("Key not bound to mailbox")
 	}
 }

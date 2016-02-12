@@ -33,16 +33,18 @@ For audit purposes the access key can be given a name. If no name is specified a
 randomly generated identifier will be used.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		mailbox.OpenDB()
-		var name string
+		key := mailbox.AccessKey{FullAccess: true}
 		if len(args) > 0 {
-			name = args[0]
+			key.Name = args[0]
 		}
-		token, err := mailbox.CreateAPIToken(name)
+		err := key.Create()
 		if err != nil {
 			log.Debug(err.Error())
-			log.Fatal("Could not create access token.")
+			log.Fatal("Could not create access key.")
 		}
-		log.Info("Access key created: " + token.Token)
+		log.Info("Access key created: ")
+		log.Info("  Access key name: " + key.Name)
+		log.Info("  Access key: " + key.Secret)
 	},
 }
 

@@ -4,18 +4,25 @@ package cmd
 
 import (
 	"conduit/log"
+	"fmt"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"golang.org/x/sys/windows/svc"
+	"postmaster/server"
 	"time"
 )
 
-type conduitService struct{}
+type conduitServerService struct{}
 
-func (m *conduitService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (ssec bool, errno uint32) {
+func (m *conduitServerService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (ssec bool, errno uint32) {
 	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown | svc.AcceptPauseAndContinue
 	changes <- svc.Status{State: svc.StartPending}
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
-	go runClient(false)
+	if viper.IsSet("enable_long_polling") {
+		server.EnableLongPolling = viper.GetBool("enable_long_polling")
+	}
+	err := server.Start(viper.GetString("host"))
+	fmt.Println("Could not start server:", err)
 loop:
 	for {
 		select {
@@ -36,20 +43,21 @@ loop:
 }
 
 // serviceCmd represents the service command
-var serviceCmd = &cobra.Command{
-	Use:   "service",
-	Short: "Run Conduit as a Windows service.",
+var serviceServerCmd = &cobra.Command{
+	Use:   "server",
+	Short: "Run Conduit as a Windows service in Server mode.",
 	Long: `Use this command line flag to run Conduit as a Windows service. The
 service in Windows should be setup to run 'conduit service'.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		run := svc.Run
-		err := run("Conduit Client", &conduitService{})
+		err := run("Conduit Server", &conduitService{})
 		if err != nil {
 			log.Fatal(err.Error())
 		}
+
 	},
 }
 
 func init() {
-	RootCmd.AddCommand(serviceCmd)
+	serviceCmd.AddCommand(serviceServerCmd)
 }

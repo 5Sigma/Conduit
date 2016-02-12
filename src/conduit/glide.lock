@@ -1,6 +1,9 @@
-hash: a387f8bc4162b188f8c75c53586b8a7e395013bea9b771b7adc45af07db3f2c9
-updated: 2016-02-08T19:59:57.31563048-06:00
+hash: e12092fa182d60e8abd5611ce19cf54fbe682634bfe9a7eca4c9691418e4dffd
+updated: 2016-02-10T19:39:49.409617174-06:00
 imports:
+- name: code.google.com/p/go-charset
+  version: ""
+  repo: https://code.google.com/p/go-charset
 - name: github.com/armon/consul-api
   version: dcfedd50ed5334f96adee43fc88518a4f095e15c
 - name: github.com/BurntSushi/toml
@@ -15,12 +18,18 @@ imports:
   version: 5215b55f46b2b919f50a1df0eaa5886afe4e3b3d
   subpackages:
   - spew
+- name: github.com/elazarl/goproxy
+  version: bee2110779c23d999b253c0ec8873757dc43d9a3
+  repo: https://github.com/elazarl/goproxy
 - name: github.com/gosuri/uilive
   version: efb88ccd059957c48f24f9d351d33a0eb00ede41
 - name: github.com/gosuri/uiprogress
   version: a9f819bfc744fe70043abcc5a6cd0137a678e3d8
 - name: github.com/hashicorp/hcl
   version: 578dd9746824a54637686b51a41bad457a56bcef
+- name: github.com/inconshreveable/go-vhost
+  version: 8cbc5089df5ba3e44644d39e8d1ec375d6d842f9
+  repo: https://github.com/inconshreveable/go-vhost
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/kardianos/osext
@@ -45,6 +54,9 @@ imports:
   - difflib
 - name: github.com/robertkrimen/otto
   version: 089191042f0d44a3476622d362d3c34f555aa95b
+- name: github.com/rogpeppe/go-charset
+  version: e9ff06f347d3f5d0013d59ed83754f0e88de10d4
+  repo: https://github.com/rogpeppe/go-charset
 - name: github.com/russross/blackfriday
   version: 006144af03eeeff1037240a71865a9fd61f1c25f
 - name: github.com/shurcooL/sanitized_anchor_name
@@ -73,6 +85,12 @@ imports:
   version: 749e360c8f236773f28fc6d3ddfce4a470795227
 - name: golang.org/x/crypto
   version: 3760e016850398b85094c4c99e955b8c3dea5711
+- name: golang.org/x/sys
+  version: 50c6bc5e4292a1d4e65c6e9be5f53be28bcbe28e
+  subpackages:
+  - windows/svc
+- name: gopkg.in/elazarl/goproxy.v1
+  version: 0a5b8bdb09049ae4ae68e75437ded0b7a2e324e3
 - name: gopkg.in/fsnotify.v1
   version: 8611c35ab31c1c28aa903d33cf8b6e44a399b09e
 - name: gopkg.in/readline.v1

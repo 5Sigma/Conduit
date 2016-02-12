@@ -10,11 +10,12 @@ func TestAddResponse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	token, err := mailbox.CreateAPIToken("AddResponseToken")
+	key := mailbox.AccessKey{FullAccess: true}
+	key.Create()
 	if err != nil {
 		t.Fatal(err)
 	}
-	dep := mailbox.Deployment{MessageBody: "test", DeployedBy: token.Token}
+	dep := mailbox.Deployment{MessageBody: "test", DeployedBy: key.Name}
 	err = dep.Create()
 	if err != nil {
 		t.Fatal(err)
@@ -23,7 +24,7 @@ func TestAddResponse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = dep.AddResponse(msg.Id, "response")
+	err = dep.AddResponse(msg.Id, "response", false)
 	if err != nil {
 		t.Fatal(err)
 	}
