@@ -16,39 +16,44 @@ package cmd
 
 import (
 	"conduit/log"
-	"fmt"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"postmaster/server"
+	"postmaster/mailbox"
 )
 
-// serverCmd represents the server command
-var serverCmd = &cobra.Command{
-	Use:   "server",
-	Short: "Run Conduit in server mode.",
-	Long: `Run the conduit message server. To manage the server use the server sub
-commands. For help run 'conduit help server'.`,
+// serverAccessRevokeCmd represents the serverAccessRevoke command
+var serverAccessRevokeCmd = &cobra.Command{
+	Use:   "revoke",
+	Short: "Revoke an access key",
+	Long: `This will remove an access key from the database. It will no longer
+be able to be used. The server must be stopped to perform this operation.`,
+	Example: "conduit server access revoke mykey",
 	Run: func(cmd *cobra.Command, args []string) {
-		if viper.IsSet("enable_long_polling") {
-			server.EnableLongPolling = viper.GetBool("enable_long_polling")
+		if len(args) == 0 {
+			cmd.Help()
+			return
 		}
-		log.LogFile = true
-		err := server.Start(viper.GetString("host"))
-		fmt.Println("Could not start server:", err)
+		mailbox.OpenDB()
+		err := mailbox.Revoke(args[0])
+		if err != nil {
+			log.Fatal(err.Error())
+		} else {
+			log.Info("Access key revoked")
+		}
+		mailbox.CloseDB()
 	},
 }
 
 func init() {
-	RootCmd.AddCommand(serverCmd)
+	accessCmd.AddCommand(serverAccessRevokeCmd)
 
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	// serverCmd.PersistentFlags().String("foo", "", "A help for foo")
+	// serverAccessRevokeCmd.PersistentFlags().String("foo", "", "A help for foo")
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	// serverCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// serverAccessRevokeCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 
 }

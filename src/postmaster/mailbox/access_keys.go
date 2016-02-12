@@ -6,10 +6,10 @@ import (
 )
 
 type AccessKey struct {
-	Secret     string
-	FullAccess bool
-	MailboxId  string
 	Name       string
+	MailboxId  string
+	FullAccess bool
+	Secret     string
 }
 
 func (key *AccessKey) Create() error {
@@ -27,15 +27,11 @@ func (key *AccessKey) Create() error {
 			key.Name = GenerateIdentifier()
 		}
 	}
-	k, err := FindKeyByName(key.Name)
-	if err != nil {
-		return err
-	}
-	if k != nil {
+	if KeyExists(key.Name) {
 		return errors.New("Key already exists")
 	}
 	key.Secret = GenerateIdentifier()
-	_, _, err = DB.Run(ql.NewRWCtx(), `
+	_, _, err := DB.Run(ql.NewRWCtx(), `
 		BEGIN TRANSACTION;
 		INSERT INTO accessToken (
 			mailbox, token, fullAccess, name
@@ -71,7 +67,7 @@ func (key *AccessKey) CanGet(mb *Mailbox) bool {
 
 func FindKeyByName(name string) (*AccessKey, error) {
 	res, _, err := DB.Run(ql.NewRWCtx(), `
-		SELECT name, token, mailbox, fullAccess
+		SELECT name, mailbox, fullAccess, token
 		FROM accessToken
 		WHERE name == $1
 		LIMIT 1;
@@ -79,14 +75,9 @@ func FindKeyByName(name string) (*AccessKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	var key *AccessKey
+	key := &AccessKey{}
 	res[0].Do(false, func(data []interface{}) (bool, error) {
-		key = &AccessKey{
-			Name:       data[0].(string),
-			Secret:     data[1].(string),
-			MailboxId:  data[2].(string),
-			FullAccess: data[3].(bool),
-		}
+		ql.Unmarshal(key, data)
 		return false, nil
 	})
 	return key, nil
@@ -94,10 +85,10 @@ func FindKeyByName(name string) (*AccessKey, error) {
 
 func KeyExists(name string) bool {
 	res, _, err := DB.Run(ql.NewRWCtx(), `
-		SELECT count(*)
-		FROM accessToken
-		WHERE name == $1
-		LIMIT 1;
+		SELECT 	count(*)
+		FROM 		accessToken
+		WHERE 	name == $1
+		LIMIT 	1;
 	`, name)
 	if err != nil {
 		return false
@@ -108,4 +99,61 @@ func KeyExists(name string) bool {
 		return false, nil
 	})
 	return count == 1
+}
+
+func AllKeys() ([]*AccessKey, error) {
+	res, _, err := DB.Run(ql.NewRWCtx(), `
+		SELECT 	name, mailbox, fullAccess, token
+		FROM 		accessToken`)
+	if err != nil {
+		return nil, err
+	}
+	keys := []*AccessKey{}
+	err = res[0].Do(false, func(data []interface{}) (bool, error) {
+		key := &AccessKey{}
+		if err := ql.Unmarshal(key, data); err != nil {
+			return false, err
+		}
+		keys = append(keys, key)
+		return true, nil
+	})
+	return keys, nil
+}
+
+func AdminKeys() ([]*AccessKey, error) {
+	res, _, err := DB.Run(ql.NewRWCtx(), `
+		SELECT 	name, mailbox, fullAccess, token
+		FROM 		accessToken
+		WHERE 	fullAccess == true
+	`)
+	if err != nil {
+		return nil, err
+	}
+	keys := []*AccessKey{}
+	err = res[0].Do(false, func(data []interface{}) (bool, error) {
+		key := &AccessKey{}
+		if err := ql.Unmarshal(key, data); err != nil {
+			return false, err
+		}
+		keys = append(keys, key)
+		return true, nil
+	})
+	return keys, nil
+}
+
+func Revoke(name string) error {
+	ctx := ql.NewRWCtx()
+	_, _, err := DB.Run(ctx, `
+		BEGIN TRANSACTION;
+		DELETE FROM 		accessToken
+		WHERE 					name == $1;
+		COMMIT;
+	`, name)
+	if err != nil {
+		return err
+	}
+	if ctx.RowsAffected == 0 {
+		return errors.New("Key not found")
+	}
+	return nil
 }

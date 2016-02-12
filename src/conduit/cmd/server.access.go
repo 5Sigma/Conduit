@@ -23,7 +23,7 @@ import (
 // accessCmd represents the access command
 var accessCmd = &cobra.Command{
 	Use:   "access [name]",
-	Short: "Generate an administrative access key for a conduit server.",
+	Short: "Generate an administrative access key the local server.",
 	Long: `This generates and returns a administrative API access key for the
 local Conduit server. This key gives full access to the Conduit API and should
 be used for administrative purposes in a Conduit client or by an external system

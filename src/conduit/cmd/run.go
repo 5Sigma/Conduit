@@ -114,8 +114,9 @@ func runProxy() {
 // runCmd starts a Conduit client in polling mode. It will poll the server for
 // messages and evaluate message bodies as scripts.
 var runCmd = &cobra.Command{
-	Use:   "run",
-	Short: "Begin watching for commands.",
+	Use:     "run",
+	Aliases: []string{"client"},
+	Short:   "Run Conduit in client mode",
 	Long: `Start processing the command queue. Conduit will run and wait for a
 command to be delivered to it for processing.`,
 	Run: func(cmd *cobra.Command, args []string) {
