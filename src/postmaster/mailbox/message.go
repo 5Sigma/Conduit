@@ -33,10 +33,14 @@ func (m *Message) Create() error {
 }
 func (m *Message) Save() error {
 	_, _, err := DB.Run(ql.NewRWCtx(), `
-		BEGIN TRANSACTIOn;
+		BEGIN TRANSACTION;
 		UPDATE message
 		SET receiveCount = $2, mailbox = $3, createdAt = $4, deployment = $5,
 			deleted = $6
 		WHERE id = $1`, m.Id, m.Mailbox, m.CreatedAt, m.Deployment, m.Deleted)
 	return err
+}
+
+func (m *Message) GetDeployment() (*Deployment, error) {
+	return FindDeployment(m.Deployment)
 }

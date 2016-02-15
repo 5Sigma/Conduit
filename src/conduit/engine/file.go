@@ -215,3 +215,33 @@ func _file_eachFile(call otto.FunctionCall) otto.Value {
 	}
 	return otto.Value{}
 }
+
+func _file_tempFile(call otto.FunctionCall) otto.Value {
+	f, err := ioutil.TempFile("", "conduit")
+	if err != nil {
+		jsThrow(call, err)
+	}
+	defer f.Close()
+	v, _ := otto.ToValue(f.Name())
+	return v
+}
+
+func _file_tempFolder(call otto.FunctionCall) otto.Value {
+	d, err := ioutil.TempDir("", "conduit")
+	if err != nil {
+		jsThrow(call, err)
+	}
+	v, _ := otto.ToValue(d)
+	return v
+}
+
+func _file_join(call otto.FunctionCall) otto.Value {
+	paths := []string{}
+	for idx, _ := range call.ArgumentList {
+		str, _ := call.Argument(idx).ToString()
+		paths = append(paths, str)
+	}
+	pathStr := filepath.Join(paths...)
+	v, _ := otto.ToValue(pathStr)
+	return v
+}

@@ -242,7 +242,10 @@ func TestDelete(t *testing.T) {
 }
 
 func TestBadMailbox(t *testing.T) {
+	key := mailbox.AccessKey{FullAccess: true}
+	key.Create()
 	req := api.GetMessageRequest{Mailbox: "111"}
+	req.Sign(key.Name, key.Secret)
 	var resp api.GetMessageResponse
 	code := doRequest(t, req, &resp, "get")
 	if code != 400 {

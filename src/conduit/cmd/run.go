@@ -81,6 +81,19 @@ func runClient(noLoop bool) {
 				}
 			}
 
+			if resp.Asset != "" {
+				assetPath, err := client.DownloadAsset(resp.Asset)
+				if err != nil {
+					client.Respond(resp.Message, "Could not download asset", true)
+					log.Error("Could not download asset")
+					_, err = client.Delete(resp.Message)
+					continue
+				} else {
+					log.Infof("Downloaded asset to %s", assetPath)
+				}
+				eng.SetAsset(assetPath)
+			}
+
 			executionStartTime := time.Now()
 			err := eng.Execute(resp.Body)
 			executionTime := time.Since(executionStartTime)
@@ -108,7 +121,9 @@ func runProxy() {
 	proxy := goproxy.NewProxyHttpServer()
 	proxyAddress := viper.GetString("master.Address")
 	err := http.ListenAndServe(proxyAddress, proxy)
-	log.Fatal(err.Error())
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 }
 
 // runCmd starts a Conduit client in polling mode. It will poll the server for
