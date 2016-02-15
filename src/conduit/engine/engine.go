@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"conduit/info"
 	"fmt"
 	"github.com/robertkrimen/otto"
 	"github.com/robertkrimen/otto/ast"
@@ -10,12 +11,14 @@ import (
 	"io/ioutil"
 	"os"
 	"postmaster/client"
+	"runtime"
 )
 
 type (
 	ScriptEngine struct {
 		VM        *otto.Otto
 		Constants map[string]string
+		AssetPath string
 	}
 )
 
@@ -132,6 +135,9 @@ func New() *ScriptEngine {
 	fileObj.Set("delete", _file_delete)
 	fileObj.Set("readString", _file_readString)
 	fileObj.Set("eachFile", _file_eachFile)
+	fileObj.Set("tempFile", _file_tempFile)
+	fileObj.Set("tempFolder", _file_tempFolder)
+	fileObj.Set("join", _file_join)
 
 	requestObj, _ := vm.Object(`$http = {}`)
 	requestObj.Set("download", _http_download)
@@ -147,13 +153,28 @@ func New() *ScriptEngine {
 	systemObj.Set("kill", _system_kill)
 	systemObj.Set("env", _system_env)
 	systemObj.Set("expand", _system_expand)
+	systemObj.Set("PLATFORM", runtime.GOOS)
+	systemObj.Set("ARCH", runtime.GOARCH)
+	systemObj.Set("VERSION", info.ConduitVersion)
 
 	zipObj, _ := vm.Object(`$zip = {}`)
 	zipObj.Set("compress", _zip_compress)
 	zipObj.Set("decompress", _zip_decompress)
 
+	tarObj, _ := vm.Object(`$tar = {}`)
+	tarObj.Set("compress", _tar_compress)
+	tarObj.Set("decompress", _tar_decompress)
+
+	gzipObj, _ := vm.Object(`$gzip = {}`)
+	gzipObj.Set("compress", _gzip_compress)
+	gzipObj.Set("decompress", _gzip_decompress)
+
+	assetObj, _ := vm.Object(`$asset = {}`)
+	assetObj.Set("exists", _asset_exists)
+
 	vm.Set("$", _respond)
 	vm.Set("$agent", _agent)
+
 	eng := &ScriptEngine{VM: vm}
 	eng.Constants = make(map[string]string)
 	return eng
@@ -176,7 +197,11 @@ func _respond(call otto.FunctionCall) otto.Value {
 	client := client.Client{
 		Host:          viper.GetString("host"),
 		AccessKey:     viper.GetString("access_key"),
-		AccessKeyName: viper.GetString("mailbox"),
+		AccessKeyName: viper.GetString("access_key_name"),
+		ShowRequests:  viper.GetBool("show_requests"),
+	}
+	if client.AccessKeyName == "" {
+		client.AccessKeyName = viper.GetString("mailbox")
 	}
 	messageId := getConstant(call.Otto, "SCRIPT_ID")
 	err := client.Respond(messageId, response, false)

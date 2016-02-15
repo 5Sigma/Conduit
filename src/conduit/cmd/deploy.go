@@ -44,19 +44,19 @@ files.`,
 		eng := engine.New()
 		err = eng.Validate(string(data))
 		if err != nil {
+			log.Error(err.Error())
 			log.Fatal("Bad script syntax")
-			log.Fatal(err.Error())
 		}
 		res, err := eng.ExecuteFunction("$local", string(data))
 		if err != nil {
+			log.Debug(err.Error())
 			log.Fatal("Local execution error")
-			log.Fatal(err.Error())
 		}
 		if res != "" && res != "undefined" {
 			log.Info("Local: " + res)
 		}
 		resp, err := client.Put(mailboxes, pattern, string(data),
-			cmd.Flag("name").Value.String())
+			cmd.Flag("name").Value.String(), cmd.Flag("attach").Value.String())
 		if err != nil {
 			log.Debug(err.Error())
 			log.Error("Could not deploy script")
@@ -113,4 +113,5 @@ func init() {
 	deployCmd.Flags().StringP("pattern", "p", "", "Wildcard search for mailboxes.")
 	deployCmd.Flags().StringP("name", "n", "", "Deployment name")
 	deployCmd.Flags().BoolP("no-results", "x", false, "Dont poll for responses.")
+	deployCmd.Flags().StringP("attach", "a", "", "Attach a file asset to this deployment.")
 }

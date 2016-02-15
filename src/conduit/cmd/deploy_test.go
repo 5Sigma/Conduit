@@ -8,9 +8,12 @@ import (
 )
 
 func TestDeploy(t *testing.T) {
+	mailbox.OpenMemDB()
+	mailbox.CreateDB()
 	os.Create("test.js")
 	file, err := os.OpenFile("test.js", os.O_APPEND|os.O_WRONLY, 0644)
 	file.WriteString("console.log('test');")
+	file.Close()
 
 	mb, err := mailbox.Create("test.test")
 	if err != nil {
@@ -36,7 +39,6 @@ func TestDeploy(t *testing.T) {
 	deployCmd.ParseFlags([]string{"-x"})
 	deployCmd.Run(deployCmd, []string{"test.js", "test.test"})
 
-	file.Close()
 	os.Remove("test.js")
 
 	msg, err := mb.GetMessage()

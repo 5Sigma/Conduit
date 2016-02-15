@@ -20,12 +20,22 @@ type (
 		PendingCount  int64
 		ResponseCount int64
 	}
+	Deployment struct {
+		Id            string
+		Name          string
+		DeployedAt    time.Time
+		DeployedBy    string
+		TotalMessages int64
+		MessageBody   string
+		Open          bool
+		Asset         string
+	}
 )
 
 func ListDeployments(name string, count int, token string) ([]Deployment, error) {
 	sql := fmt.Sprintf(`
 		SELECT 		deployment.id, deployment.name, deployment.deployedAt,
-							accessToken.name, deployment.totalMessages
+							accessToken.name, deployment.totalMessages, deployment.asset
 		FROM  		deployment, accessToken
 		WHERE 		deployment.name LIKE $1
 			AND 		deployment.deployedBy LIKE $2
@@ -48,6 +58,9 @@ func ListDeployments(name string, count int, token string) ([]Deployment, error)
 		if data[2] != nil {
 			deployment.DeployedAt = data[2].(time.Time)
 		}
+		if data[5] != nil {
+			deployment.Asset = data[5].(string)
+		}
 		deployments = append(deployments, deployment)
 		return true, nil
 	})
@@ -56,10 +69,9 @@ func ListDeployments(name string, count int, token string) ([]Deployment, error)
 
 func FindDeployment(id string) (*Deployment, error) {
 	resp, _, err := DB.Run(ql.NewRWCtx(), `
-		SELECT 	id, name, deployedAt, deployedBy, open, messageBody
+		SELECT 	id, name, deployedAt, deployedBy, open, messageBody, asset
 		FROM 		deployment
 		WHERE 	id == $1;
-
 		SELECT 	count(*) 
 		FROM 		message
 		WHERE 	deployment == $1;
@@ -79,6 +91,9 @@ func FindDeployment(id string) (*Deployment, error) {
 		if data[2] != nil {
 			deployment.DeployedAt = data[2].(time.Time)
 		}
+		if data[6] != nil {
+			deployment.Asset = data[6].(string)
+		}
 		return false, nil
 	})
 	if deployment != nil {
@@ -88,16 +103,6 @@ func FindDeployment(id string) (*Deployment, error) {
 		})
 	}
 	return deployment, nil
-}
-
-type Deployment struct {
-	Id            string
-	Name          string
-	DeployedAt    time.Time
-	DeployedBy    string
-	TotalMessages int64
-	MessageBody   string
-	Open          bool
 }
 
 func (dp *Deployment) Save() error {
@@ -128,10 +133,10 @@ func (dp *Deployment) Create() error {
 		BEGIN TRANSACTION;
 		INSERT INTO 	deployment 
 									(id, name, deployedBy, totalMessages, messageBody,
-									open, deployedAt)
-		VALUES 				($1, $2, $3, 0, $4, true, $5);
+									open, deployedAt, asset)
+		VALUES 				($1, $2, $3, 0, $4, true, $5, $6);
 		COMMIT;
-	`, dp.Id, dp.Name, dp.DeployedBy, dp.MessageBody, dp.DeployedAt)
+	`, dp.Id, dp.Name, dp.DeployedBy, dp.MessageBody, dp.DeployedAt, dp.Asset)
 	return err
 }
 

@@ -23,9 +23,10 @@ import (
 )
 
 var executeCmd = &cobra.Command{
-	Use:   "execute [script]",
-	Short: "Execute a script file.",
-	Long:  `Execute a Javascript file at the specified path.`,
+	Use:     "execute [script]",
+	Short:   "Execute a script file.",
+	Long:    `Execute a Javascript file at the specified path.`,
+	Aliases: []string{"exec"},
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 0 {
 			fmt.Println("No file specified.")

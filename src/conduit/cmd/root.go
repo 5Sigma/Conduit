@@ -15,6 +15,7 @@
 package cmd
 
 import (
+	"conduit/info"
 	"conduit/log"
 	"fmt"
 	"github.com/kardianos/osext"
@@ -27,8 +28,9 @@ var cfgFile string
 
 var RootCmd = &cobra.Command{
 	Use:   "conduit",
-	Short: "Conduit v" + version,
-	Long: `Conduit is a client/server package that allows command and management
+	Short: "Conduit v" + info.ConduitVersion,
+	Long: `Conduit ` + info.ConduitVersion + `
+Conduit is a client/server package that allows command and management
 of resources using JavaScript based automation scripts.`,
 }
 
@@ -54,9 +56,9 @@ func initConfig() {
 	exePath, _ := osext.ExecutableFolder()
 	wd, _ := os.Getwd()
 	viper.SetConfigName("conduit") // name of config file (without extension)
-	viper.AddConfigPath(wd)        // adding home directory as first search path
-	viper.AddConfigPath(exePath)   // adding home directory as first search path
-	viper.AutomaticEnv()           // read in environment variables that match
+	viper.AutomaticEnv()
+	viper.AddConfigPath(wd)
+	viper.AddConfigPath(exePath)
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {

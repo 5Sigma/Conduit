@@ -8,17 +8,25 @@ import (
 	"testing"
 )
 
-var pmClient client.Client
-var mb *mailbox.Mailbox
-var accessKey *mailbox.AccessKey
+var (
+	pmClient  client.Client
+	mb        *mailbox.Mailbox
+	accessKey *mailbox.AccessKey
+)
 
 func TestMain(m *testing.M) {
 	// open database in memory for testing
 	mailbox.OpenMemDB()
-	mailbox.CreateDB()
+	err := mailbox.CreateDB()
+	if err != nil {
+		panic(err)
+	}
 
 	// create a default mailbox to use
-	mb, _ = mailbox.Create("mb")
+	mb, err = mailbox.Create("mb")
+	if err != nil {
+		panic(err)
+	}
 
 	// create an access token for the default mailbox
 	accessKey = &mailbox.AccessKey{FullAccess: true}
@@ -60,7 +68,7 @@ func TestClientGet(t *testing.T) {
 func TestClientPut(t *testing.T) {
 	mb1, _ := mailbox.Create("put1")
 	mb2, _ := mailbox.Create("put2")
-	_, err := pmClient.Put([]string{mb1.Id, mb2.Id}, "", "PUT TEST", "")
+	_, err := pmClient.Put([]string{mb1.Id, mb2.Id}, "", "PUT TEST", "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +81,7 @@ func TestClientPut(t *testing.T) {
 
 func TestAutoCreateDeploy(t *testing.T) {
 	mb, _ := mailbox.Create("put.autocreate.deploy")
-	msg, err := pmClient.Put([]string{mb.Id}, "", "TEST MESSAGE", "blah")
+	msg, err := pmClient.Put([]string{mb.Id}, "", "TEST MESSAGE", "blah", "")
 	if err != nil {
 		t.Fatal(err)
 	}

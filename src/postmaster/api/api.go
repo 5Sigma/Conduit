@@ -1,6 +1,7 @@
 package api
 
 import (
+	"conduit/info"
 	"conduit/log"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -11,6 +12,7 @@ import (
 
 type (
 	ApiRequest struct {
+		Version       string `json:"version"`
 		Signature     string `json:"signature"`
 		RequestTime   string `json:"requestTime"`
 		AccessKeyName string `json:"keyName"`
@@ -27,6 +29,7 @@ type (
 		Body           string   `json:"body"`
 		Pattern        string   `json:"pattern"`
 		DeploymentName string   `json:"deploymentName"`
+		Asset          string   `json:"asset"`
 	}
 
 	PutMessageResponse struct {
@@ -49,6 +52,7 @@ type (
 		CreatedAt    time.Time `json:"createdAt"`
 		ReceiveCount int64     `json:"receiveCount"`
 		Deployment   string    `json:"deployment"`
+		Asset        string    `json:"asset"`
 	}
 	DeleteMessageRequest struct {
 		ApiRequest
@@ -144,6 +148,20 @@ type (
 		Success bool
 		Error   string
 	}
+
+	UploadFileRequest struct {
+		ApiRequest
+		Filename string `json:"filename"`
+		MD5      string `json:"md5"`
+	}
+	CheckFileRequest struct {
+		ApiRequest
+		MD5 string `json:"md5"`
+	}
+	GetAssetRequest struct {
+		ApiRequest
+		MD5 string `json:"md5"`
+	}
 )
 
 func (r *GetMessageResponse) IsEmpty() bool {
@@ -160,6 +178,7 @@ func (request *ApiRequest) Sign(keyName, secret string) {
 	request.AccessKeyName = keyName
 	request.RequestTime = time.Now().Format(time.RFC3339)
 	request.Token = token
+	request.Version = info.ConduitVersion
 	key := []byte(secret)
 	h := hmac.New(sha256.New, key)
 	sig := token + request.RequestTime

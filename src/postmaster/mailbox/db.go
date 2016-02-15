@@ -13,46 +13,60 @@ var DB *ql.DB
 func CreateDB() error {
 	_, _, err := DB.Run(ql.NewRWCtx(), `
 			BEGIN TRANSACTION;
+			CREATE TABLE properties (
+				key string,
+				value string
+			);
+
+			INSERT INTO 	properties
+			VALUES 				("dbversion", "1");
+
 			CREATE TABLE message (
-				id string,
-				receiveCount int,
-				mailbox string,
-				createdAt time,
-				lastReceivedAt time,
-				deployment string,
-				deleted bool
+				id 							string,
+				receiveCount 		int,
+				mailbox 				string,
+				createdAt 			time,
+				lastReceivedAt 	time,
+				deployment 			string,
+				deleted 				bool
 			);
+
 			CREATE TABLE mailbox (
-				id string,
-				completedMessages int,
-				createdAt time,
-				lastCompletedAt time,
-				lastCheckedInAt time
+				id  								string,
+				completedMessages 	int,
+				createdAt 					time,
+				lastCompletedAt 		time,
+				lastCheckedInAt 		time
 			);
+
 			CREATE TABLE accessToken (
-				mailbox string,
-				token string,
-				name string,
-				fullAccess bool
+				mailbox 		string,
+				token 			string,
+				name 				string,
+				fullAccess 	bool
 			);
+
 			CREATE TABLE deployment (
-				id string,
-				messageBody string,
-				name string,
-				deployedAt time,
-				deployedBy string,
+				id 						string,
+				messageBody 	string,
+				name 					string,
+				deployedAt 		time,
+				deployedBy 		string,
 				totalMessages int,
-				open bool
+				open 					bool,
+				asset 				string
 			);
+
 			CREATE TABLE deploymentResponse (
-				deployment string,
-				mailbox string,
-				response string,
-				respondedAt time,
-				isError bool
+				deployment 		string,
+				mailbox 			string,
+				response 			string,
+				respondedAt 	time,
+				isError 			bool
 			);
-			INSERT INTO accessToken (mailbox, token, name, fullAccess)
-			VALUES ("conduit.system", "SYSTEM", "conduit.system", false);
+
+			INSERT INTO 	accessToken (mailbox, token, name, fullAccess)
+			VALUES 				("conduit.system", "SYSTEM", "conduit.system", false);
 			COMMIT;`)
 	return err
 }
