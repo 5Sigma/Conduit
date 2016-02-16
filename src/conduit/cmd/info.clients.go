@@ -20,7 +20,7 @@ import (
 )
 
 // clientsCmd represents the clients command
-var clientsCmd = &cobra.Command{
+var infoClientsCmd = &cobra.Command{
 	Use:   "clients",
 	Short: "Get the status of all mailboxes.",
 	Long:  `Returns the connection status of all mailboxes.`,
@@ -50,7 +50,7 @@ var clientsCmd = &cobra.Command{
 }
 
 func init() {
-	statsCmd.AddCommand(clientsCmd)
+	infoCmd.AddCommand(infoClientsCmd)
 
 	// Here you will define your flags and configuration settings.
 

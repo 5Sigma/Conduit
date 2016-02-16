@@ -6,10 +6,10 @@ import (
 )
 
 // statsCmd represents the stats command
-var statsCmd = &cobra.Command{
-	Use:     "stats",
+var infoCmd = &cobra.Command{
+	Use:     "info",
 	Short:   "Retrieve system statistics from the server",
-	Aliases: []string{"info"},
+	Aliases: []string{"stats"},
 	Long: `Gathers system statistics such as connected clients, and pending
 message count from the remote server.`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -31,5 +31,5 @@ message count from the remote server.`,
 }
 
 func init() {
-	RootCmd.AddCommand(statsCmd)
+	RootCmd.AddCommand(infoCmd)
 }
