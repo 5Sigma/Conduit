@@ -30,18 +30,25 @@ func clientStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clients := make(map[string]bool)
+	clients := []api.ClientStatus{}
 	mbxs, err := mailbox.All()
 	if err != nil {
 		sendError(w, err.Error())
 		return
 	}
 	for _, mb := range mbxs {
-		if _, ok := pollingChannels[mb.Id]; ok {
-			clients[mb.Id] = true
-		} else {
-			clients[mb.Id] = false
+		st := api.ClientStatus{
+			Mailbox:  mb.Id,
+			Version:  mb.Version,
+			Host:     mb.Host,
+			LastSeen: mb.LastSeen,
 		}
+		if _, ok := pollingChannels[mb.Id]; ok {
+			st.Online = true
+		} else {
+			st.Online = false
+		}
+		clients = append(clients, st)
 	}
 	response := api.ClientStatusResponse{Clients: clients}
 	response.Sign(accessKey.Name, accessKey.Secret)

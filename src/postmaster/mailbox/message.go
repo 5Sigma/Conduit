@@ -44,3 +44,20 @@ func (m *Message) Save() error {
 func (m *Message) GetDeployment() (*Deployment, error) {
 	return FindDeployment(m.Deployment)
 }
+
+// readMessageStruct is used to read the row data into a Message
+func readMessageStruct(data []interface{}) *Message {
+	message := &Message{
+		Id:           data[0].(string),
+		Body:         data[1].(string),
+		Mailbox:      data[2].(string),
+		Deployment:   data[3].(string),
+		ReceiveCount: data[4].(int64),
+		Deleted:      data[7].(bool),
+		CreatedAt:    data[6].(time.Time),
+	}
+	if data[5] != nil {
+		message.LastReceivedAt = data[5].(time.Time)
+	}
+	return message
+}

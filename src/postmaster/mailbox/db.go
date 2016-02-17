@@ -1,11 +1,13 @@
 package mailbox
 
 import (
+	"conduit/log"
 	"fmt"
 	"github.com/cznic/ql"
 	"github.com/kardianos/osext"
 	"os"
 	"path/filepath"
+	"strconv"
 )
 
 var DB *ql.DB
@@ -33,9 +35,7 @@ func CreateDB() error {
 
 			CREATE TABLE mailbox (
 				id  								string,
-				completedMessages 	int,
 				createdAt 					time,
-				lastCompletedAt 		time,
 				lastCheckedInAt 		time
 			);
 
@@ -71,6 +71,41 @@ func CreateDB() error {
 	return err
 }
 
+func migrateDatabase() error {
+	dbVersionStr, err := GetDBVersion()
+	dbVersion, err := strconv.Atoi(dbVersionStr)
+	if err != nil {
+		return err
+	}
+	if err != nil {
+		return err
+	}
+	switch {
+	case dbVersion < 2:
+		err := runMigration("2", `
+			ALTER TABLE mailbox ADD version string;
+			ALTER TABLE mailbox ADD host string;
+		`)
+		if err != nil {
+			return err
+		}
+		fallthrough
+	default:
+	}
+	return nil
+}
+
+func runMigration(version, sql string) error {
+	log.Infof("Upgrading database to version %s", version)
+	fullSql := `
+		BEGIN TRANSACTION;
+		` + sql + `
+		UPDATE properties SET value = $1 WHERE key == "dbversion";
+		COMMIT;`
+	_, _, err := DB.Run(ql.NewRWCtx(), fullSql, version)
+	return err
+}
+
 func OpenDB() {
 	var err error
 	shouldCreate := false
@@ -90,12 +125,35 @@ func OpenDB() {
 			panic(err)
 		}
 	}
+	err = migrateDatabase()
+	if err != nil {
+		panic(err)
+	}
 }
 
 func OpenMemDB() error {
 	var err error
 	DB, err = ql.OpenMem()
 	return err
+}
+
+func GetDBVersion() (string, error) {
+	var (
+		dbVersion = ""
+	)
+	rss, _, err := DB.Run(ql.NewRWCtx(), `
+
+	SELECT 	value
+	FROM 		properties
+	WHERE  	key == "dbversion"`)
+	if err != nil {
+		return dbVersion, err
+	}
+	rss[0].Do(false, func(data []interface{}) (bool, error) {
+		dbVersion = data[0].(string)
+		return false, nil
+	})
+	return dbVersion, err
 }
 
 func CloseDB() error {

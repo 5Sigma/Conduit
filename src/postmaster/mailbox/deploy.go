@@ -32,15 +32,30 @@ type (
 	}
 )
 
+func readDeploymentData(data []interface{}) Deployment {
+	deployment := Deployment{
+		Id:            data[0].(string),
+		Name:          data[1].(string),
+		DeployedBy:    data[3].(string),
+		TotalMessages: data[4].(int64),
+		MessageBody:   data[5].(string),
+	}
+	if data[2] != nil {
+		deployment.DeployedAt = data[2].(time.Time)
+	}
+	if data[5] != nil {
+		deployment.Asset = data[6].(string)
+	}
+	return deployment
+}
+
 func ListDeployments(name string, count int, token string) ([]Deployment, error) {
 	sql := fmt.Sprintf(`
-		SELECT 		deployment.id, deployment.name, deployment.deployedAt,
-							accessToken.name, deployment.totalMessages, deployment.asset
-		FROM  		deployment, accessToken
-		WHERE 		deployment.name LIKE $1
-			AND 		deployment.deployedBy LIKE $2
-			AND 		accessToken.name == deployment.deployedBy
-		ORDER BY 	deployment.deployedAt DESC
+		SELECT 		id, name, deployedAt, deployedBy, totalMessages, messageBody, asset
+		FROM  		deployment
+		WHERE 		name LIKE $1
+			AND 		deployedBy LIKE $2
+		ORDER BY 	deployedAt DESC
 		LIMIT %d
 		`, count)
 	resp, _, err := DB.Run(ql.NewRWCtx(), sql, name, token)
@@ -49,18 +64,7 @@ func ListDeployments(name string, count int, token string) ([]Deployment, error)
 	}
 	deployments := []Deployment{}
 	resp[0].Do(false, func(data []interface{}) (bool, error) {
-		deployment := Deployment{
-			Id:            data[0].(string),
-			Name:          data[1].(string),
-			DeployedBy:    data[3].(string),
-			TotalMessages: data[4].(int64),
-		}
-		if data[2] != nil {
-			deployment.DeployedAt = data[2].(time.Time)
-		}
-		if data[5] != nil {
-			deployment.Asset = data[5].(string)
-		}
+		deployment := readDeploymentData(data)
 		deployments = append(deployments, deployment)
 		return true, nil
 	})
@@ -69,7 +73,7 @@ func ListDeployments(name string, count int, token string) ([]Deployment, error)
 
 func FindDeployment(id string) (*Deployment, error) {
 	resp, _, err := DB.Run(ql.NewRWCtx(), `
-		SELECT 	id, name, deployedAt, deployedBy, open, messageBody, asset
+		SELECT 		id, name, deployedAt, deployedBy, totalMessages, messageBody, asset
 		FROM 		deployment
 		WHERE 	id == $1;
 		SELECT 	count(*) 
@@ -81,19 +85,8 @@ func FindDeployment(id string) (*Deployment, error) {
 	}
 	var deployment *Deployment
 	resp[0].Do(false, func(data []interface{}) (bool, error) {
-		deployment = &Deployment{
-			Id:          data[0].(string),
-			Name:        data[1].(string),
-			DeployedBy:  data[3].(string),
-			Open:        data[4].(bool),
-			MessageBody: data[5].(string),
-		}
-		if data[2] != nil {
-			deployment.DeployedAt = data[2].(time.Time)
-		}
-		if data[6] != nil {
-			deployment.Asset = data[6].(string)
-		}
+		d := readDeploymentData(data)
+		deployment = &d
 		return false, nil
 	})
 	if deployment != nil {

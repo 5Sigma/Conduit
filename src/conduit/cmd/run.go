@@ -17,6 +17,7 @@ package cmd
 import (
 	"conduit/engine"
 	"conduit/log"
+	"errors"
 	"github.com/elazarl/goproxy"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -29,6 +30,7 @@ var s string
 var errorCount int
 
 func runClient(noLoop bool) {
+	viper.SetDefault("script_timeout", 300)
 	log.LogFile = true
 	if viper.GetBool("master.enabled") {
 		log.Info("Launching master server")
@@ -57,7 +59,7 @@ func runClient(noLoop bool) {
 		// If an error is returned by the client we will begin an exponential back
 		// off in retrying. The backoff caps out at 15 retries.
 		if err != nil {
-			log.Error(err.Error())
+			log.Error("Error getting messages: " + err.Error())
 			if errorCount < 15 {
 				errorCount++
 			}
@@ -95,7 +97,23 @@ func runClient(noLoop bool) {
 			}
 
 			executionStartTime := time.Now()
-			err := eng.Execute(resp.Body)
+			errChan := make(chan string, 1)
+			timeoutSeconds := viper.GetInt("script_timeout")
+			go func() {
+				err = eng.Execute(resp.Body)
+				if err != nil {
+					errChan <- err.Error()
+				} else {
+					errChan <- ""
+				}
+			}()
+			select {
+			case e := <-errChan:
+				err = errors.New(e)
+			case <-time.After(time.Second * time.Duration(timeoutSeconds)):
+				log.Warn("Timing out script")
+				err = errors.New("Scirpt timeed out")
+			}
 			executionTime := time.Since(executionStartTime)
 			log.Infof("Script executed in %s", executionTime)
 			if err != nil {
@@ -105,8 +123,8 @@ func runClient(noLoop bool) {
 			}
 			_, err = client.Delete(resp.Message)
 			if err != nil {
-				log.Error("Could not confirm script.")
 				log.Debug(err.Error())
+				log.Error("Could not confirm script.")
 			} else {
 				log.Debug("Script confirmed: " + resp.Message)
 			}

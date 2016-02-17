@@ -6,7 +6,6 @@ import (
 	"github.com/ttacon/chalk"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -47,7 +46,7 @@ func Errorf(msg string, a ...interface{}) {
 }
 
 func Fatal(msg string) {
-	write("DEBUG", msg, chalk.Red.Color)
+	write("FATAL", msg, chalk.Red.Color)
 	os.Exit(-1)
 }
 
@@ -65,41 +64,8 @@ func Alert(msg string) {
 	Alertf("%s", msg)
 }
 
-func Stats(name string, value interface{}) {
-	nameStr := fmt.Sprintf("%s:", name)
-	padding := strings.Repeat(" ", 20-len(nameStr))
-	var valueStr = ""
-	switch value.(type) {
-	case int64:
-		valueStr = fmt.Sprintf("%d", value)
-	case string:
-		valueStr = value.(string)
-	}
-	str := fmt.Sprintf("%s %s %s %s %s", nameStr, padding, chalk.Blue, valueStr,
-		chalk.ResetColor)
-	write("", str, noStyle)
-}
-
 func noStyle(s string) string {
 	return s
-}
-
-func Status(label, value string, success bool) {
-	if success {
-		value = chalk.Green.Color(value)
-	} else {
-		value = chalk.Red.Color(value)
-	}
-	valueStr := fmt.Sprintf("[ %s ] ", value)
-	str := valueStr + label
-	write("", str, noStyle)
-}
-
-func write(tag, text string, style func(string) string) {
-	fmt.Println(style(text))
-	if LogFile == true {
-		writeFile(tag, text)
-	}
 }
 
 func writeFile(logType, text string) {

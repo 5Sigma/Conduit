@@ -26,14 +26,15 @@ type (
 	//
 	//		newton.*.bohr
 	Mailbox struct {
-		Id                string
-		DeliveredMessages int64
-		LastDelivery      time.Time
-		LastRequest       time.Time
+		Id       string
+		LastSeen time.Time
+		Version  string
+		Host     string
 	}
 
 	SystemStats struct {
 		MailboxCount    int64
+		MessageCount    int64
 		PendingMessages int64
 	}
 )
@@ -49,13 +50,22 @@ func GenerateIdentifier() string {
 func All() ([]Mailbox, error) {
 	var mbxs []Mailbox
 	rss, _, err := DB.Run(ql.NewRWCtx(), `
-		SELECT id FROM mailbox`)
+		SELECT id, lastCheckedInAt, version, host FROM mailbox`)
 	if err != nil {
 		return nil, err
 	}
 	rss[0].Do(false, func(data []interface{}) (bool, error) {
 		mb := Mailbox{
 			Id: data[0].(string),
+		}
+		if data[1] != nil {
+			mb.LastSeen = data[1].(time.Time)
+		}
+		if data[2] != nil {
+			mb.Version = data[2].(string)
+		}
+		if data[3] != nil {
+			mb.Host = data[3].(string)
 		}
 		mbxs = append(mbxs, mb)
 		return true, nil
@@ -67,13 +77,16 @@ func All() ([]Mailbox, error) {
 func Find(id string) (*Mailbox, error) {
 	var mbx *Mailbox
 	rss, _, err := DB.Run(ql.NewRWCtx(),
-		` SELECT id FROM mailbox WHERE id==$1`, id)
+		` SELECT id, lastCheckedInAt FROM mailbox WHERE id==$1`, id)
 	if err != nil {
 		return nil, err
 	}
 	rss[0].Do(false, func(data []interface{}) (bool, error) {
 		mbx = &Mailbox{
 			Id: data[0].(string),
+		}
+		if data[1] != nil {
+			mbx.LastSeen = data[1].(time.Time)
 		}
 		return false, nil
 	})
@@ -103,8 +116,7 @@ func Create(id string) (*Mailbox, error) {
 		return mb, errors.New("Mailbox already exists")
 	}
 	mb = &Mailbox{
-		Id:                strings.ToLower(id),
-		DeliveredMessages: 0,
+		Id: strings.ToLower(id),
 	}
 	_, _, err = DB.Run(ql.NewRWCtx(), `
 		BEGIN TRANSACTION;
@@ -240,6 +252,17 @@ func (mb *Mailbox) DeployMessage(depId string) (*Message, error) {
 	return msg, err
 }
 
+func (mb *Mailbox) Checkin(host, version string) error {
+	_, _, err := DB.Run(ql.NewRWCtx(), `
+		BEGIN TRANSACTION;
+		UPDATE 	mailbox
+		SET 		lastCheckedInAt = $1, host = $2, version = $3
+		WHERE 	id == $4;
+		COMMIT;
+		`, time.Now(), host, version, mb.Id)
+	return err
+}
+
 // GetMessage returns a message from the mailbox. Once the message is processed
 // it should be removed from the queue with Delete.
 func (mb *Mailbox) GetMessage() (*Message, error) {
@@ -327,6 +350,7 @@ func (mb *Mailbox) MessageCount() (int64, error) {
 func Stats() (*SystemStats, error) {
 	rss, _, err := DB.Run(ql.NewRWCtx(), `
 		SELECT count(*) FROM message where deleted == false;
+		SELECT count(*) FROM message;
 		SELECT count(*) FROM mailbox;`)
 	if err != nil {
 		return nil, err
@@ -337,25 +361,30 @@ func Stats() (*SystemStats, error) {
 		return false, nil
 	})
 	rss[1].Do(false, func(data []interface{}) (bool, error) {
+		stats.MessageCount = data[0].(int64)
+		return false, nil
+	})
+	rss[2].Do(false, func(data []interface{}) (bool, error) {
 		stats.MailboxCount = data[0].(int64)
 		return false, nil
 	})
 	return stats, nil
 }
 
-// readMessageStruct is used to read the row data into a Message
-func readMessageStruct(data []interface{}) *Message {
-	message := &Message{
-		Id:           data[0].(string),
-		Body:         data[1].(string),
-		Mailbox:      data[2].(string),
-		Deployment:   data[3].(string),
-		ReceiveCount: data[4].(int64),
-		Deleted:      data[7].(bool),
-		CreatedAt:    data[6].(time.Time),
+func AssetPending(md5 string) (bool, error) {
+	rss, _, err := DB.Run(ql.NewRWCtx(), `
+	SELECT 		count(message.id)
+	FROM 			message, deployment
+	WHERE 		message.deployment == deployment.id
+	AND 			message.deleted == false
+	AND 			deployment.asset == $1`, md5)
+	if err != nil {
+		return false, err
 	}
-	if data[5] != nil {
-		message.LastReceivedAt = data[5].(time.Time)
-	}
-	return message
+	var count int64 = 1
+	rss[0].Do(false, func(data []interface{}) (bool, error) {
+		count = data[0].(int64)
+		return true, nil
+	})
+	return count != 0, nil
 }
