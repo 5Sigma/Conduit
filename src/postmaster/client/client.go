@@ -171,7 +171,7 @@ func (client *Client) Stats() (*api.SystemStatsResponse, error) {
 	return &response, nil
 }
 
-func (client *Client) ClientStatus() (map[string]bool, error) {
+func (client *Client) ClientStatus() ([]api.ClientStatus, error) {
 	request := api.SimpleRequest{}
 	request.Sign(client.AccessKeyName, client.AccessKey)
 	var response api.ClientStatusResponse

@@ -16,6 +16,8 @@ package cmd
 
 import (
 	"conduit/log"
+	"fmt"
+	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 )
 
@@ -35,15 +37,32 @@ var infoClientsCmd = &cobra.Command{
 			log.Debug(err.Error())
 			log.Fatal("Could not retrieve statistics")
 		}
-		for mb, v := range stats {
+		for _, st := range stats {
+			versionStr := ""
+			if cmd.Flag("info").Value.String() == "true" {
+				if st.Version == "" {
+					versionStr = "[ ? ]"
+				} else {
+					versionStr = fmt.Sprintf("[%s]", st.Version)
+				}
+			}
+			kStr := fmt.Sprintf("%s %s", versionStr, st.Mailbox)
+			if cmd.Flag("info").Value.String() == "true" {
+				kStr += fmt.Sprintf(" (%s)", st.Host)
+			}
 			var vStr = ""
-			if v {
+			if st.Online {
 				vStr = "ONLINE "
 			} else {
 				vStr = "OFFLINE"
+				if st.LastSeen.IsZero() {
+					kStr += "  - Never checked in"
+				} else {
+					kStr += "  - last seen " + humanize.Time(st.LastSeen)
+				}
 			}
-			if cmd.Flag("offline").Value.String() == "false" || !v {
-				log.Status(mb, vStr, v)
+			if cmd.Flag("offline").Value.String() == "false" || !st.Online {
+				log.Status(kStr, vStr, st.Online == true)
 			}
 		}
 	},
@@ -52,15 +71,6 @@ var infoClientsCmd = &cobra.Command{
 func init() {
 	infoCmd.AddCommand(infoClientsCmd)
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// clientsCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// clientsCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-
-	clientsCmd.Flags().BoolP("offline", "x", false, "Show only offline clients")
+	infoClientsCmd.Flags().BoolP("offline", "x", false, "Show only offline clients")
+	infoClientsCmd.Flags().BoolP("info", "i", false, "Show addtional client information")
 }

@@ -75,14 +75,31 @@ type (
 
 	SystemStatsResponse struct {
 		ApiRequest
-		TotalMailboxes   int64 `json:"totalMailboxes"`
-		PendingMessages  int64 `json:"pendingMessages"`
-		ConnectedClients int64 `json:"connectedClients"`
+		TotalMailboxes   int64  `json:"totalMailboxes"`
+		MessageCount     int64  `json:"messageCount"`
+		PendingMessages  int64  `json:"pendingMessages"`
+		ConnectedClients int64  `json:"connectedClients"`
+		DBVersion        string `json:"dbVersion"`
+		Threads          int64  `json:"threads"`
+		CPUCount         int64  `json:"cpuCount"`
+		MemoryAllocated  uint64 `json:"memory"`
+		Lookups          uint64 `json:lookups"`
+		NextGC           uint64 `json:"garbageCollectionAt"`
+		FileStoreCount   int64  `json:"filesCount"`
+		FileStoreSize    int64  `json:"filesSize"`
 	}
 
 	ClientStatusResponse struct {
 		ApiRequest
-		Clients map[string]bool `json:"clients"`
+		Clients []ClientStatus
+	}
+
+	ClientStatus struct {
+		Mailbox  string    `json:"mailbox"`
+		LastSeen time.Time `json:"lastSeenAt"`
+		Version  string    `json:"version"`
+		Host     string    `json:"host"`
+		Online   bool      `json:"online"`
 	}
 
 	DeploymentStatsRequest struct {

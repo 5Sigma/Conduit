@@ -1,5 +1,5 @@
-hash: e12092fa182d60e8abd5611ce19cf54fbe682634bfe9a7eca4c9691418e4dffd
-updated: 2016-02-10T19:39:49.409617174-06:00
+hash: 31326d8a3fc0b31754a425890b68f77b2c0f281c25e0c07707197a15cd289a6c
+updated: 2016-02-16T21:16:52.143485527-06:00
 imports:
 - name: code.google.com/p/go-charset
   version: ""
@@ -18,9 +18,10 @@ imports:
   version: 5215b55f46b2b919f50a1df0eaa5886afe4e3b3d
   subpackages:
   - spew
+- name: github.com/dustin/go-humanize
+  version: 8929fe90cee4b2cb9deb468b51fb34eba64d1bf0
 - name: github.com/elazarl/goproxy
   version: bee2110779c23d999b253c0ec8873757dc43d9a3
-  repo: https://github.com/elazarl/goproxy
 - name: github.com/gosuri/uilive
   version: efb88ccd059957c48f24f9d351d33a0eb00ede41
 - name: github.com/gosuri/uiprogress
@@ -29,7 +30,6 @@ imports:
   version: 578dd9746824a54637686b51a41bad457a56bcef
 - name: github.com/inconshreveable/go-vhost
   version: 8cbc5089df5ba3e44644d39e8d1ec375d6d842f9
-  repo: https://github.com/inconshreveable/go-vhost
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/kardianos/osext
@@ -48,6 +48,8 @@ imports:
   version: 281073eb9eb092240d33ef253c404f1cca550309
 - name: github.com/nbutton23/zxcvbn-go
   version: 7d8c28acb67ddb1c9a8c878580c4774ba3ad7dca
+- name: github.com/pivotal-golang/bytefmt
+  version: 263ce04fc1d71bc7d50c241293488b3f54c779e5
 - name: github.com/pmezard/go-difflib
   version: e8554b8641db39598be7f6342874b958f12ae1d4
   subpackages:
@@ -56,7 +58,6 @@ imports:
   version: 089191042f0d44a3476622d362d3c34f555aa95b
 - name: github.com/rogpeppe/go-charset
   version: e9ff06f347d3f5d0013d59ed83754f0e88de10d4
-  repo: https://github.com/rogpeppe/go-charset
 - name: github.com/russross/blackfriday
   version: 006144af03eeeff1037240a71865a9fd61f1c25f
 - name: github.com/shurcooL/sanitized_anchor_name

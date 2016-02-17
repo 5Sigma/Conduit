@@ -59,6 +59,11 @@ func getMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := mb.Checkin(r.RemoteAddr, request.Version); err != nil {
+		sendError(w, err.Error())
+		return
+	}
+
 	msg, err := mb.GetMessage()
 	if err != nil {
 		sendError(w, err.Error())

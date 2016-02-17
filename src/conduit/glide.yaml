@@ -10,3 +10,5 @@ import:
 - package: github.com/kardianos/osext
 - package: golang.org/x/sys/windows/svc
 - package: gopkg.in/elazarl/goproxy.v1
+- package: github.com/pivotal-golang/bytefmt
+- package: github.com/dustin/go-humanize

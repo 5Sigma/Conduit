@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
 	"postmaster/api"
 	"postmaster/mailbox"
 	"regexp"
@@ -89,6 +90,19 @@ func Start(addr string) error {
 			}
 		}
 	}
+
+	cleanupTicker := time.Tick(1 * time.Hour)
+	go func() {
+		for {
+			select {
+			case <-cleanupTicker:
+				err := cleanupFiles()
+				if err != nil {
+					log.Warn(err.Error())
+				}
+			}
+		}
+	}()
 
 	endpoints := EndPointHandler{}
 	svr := &http.Server{
@@ -174,4 +188,21 @@ func sendConduitBinary(w http.ResponseWriter, r *http.Request) {
 
 	exePath, _ := osext.Executable()
 	http.ServeFile(w, r, exePath)
+}
+
+func cleanupFiles() error {
+	files, _ := ioutil.ReadDir(filesPath())
+	for _, f := range files {
+		pending, err := mailbox.AssetPending(f.Name())
+		if err == nil && !pending {
+			log.Infof("Cleaning up file %s", f.Name())
+			err := os.Remove(filepath.Join(filesPath(), f.Name()))
+			if err != nil {
+				log.Warn("File clenaup " + err.Error())
+			}
+		} else if err != nil {
+			return err
+		}
+	}
+	return nil
 }
