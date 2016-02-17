@@ -4,7 +4,9 @@ package log
 
 import (
 	"fmt"
+	"os"
 	"strings"
+	"time"
 )
 
 func Status(label, value string, success bool) {
