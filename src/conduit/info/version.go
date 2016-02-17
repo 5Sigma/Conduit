@@ -1,3 +1,3 @@
 package info
 
-var ConduitVersion = "0.2"
+var ConduitVersion = "0.3"
