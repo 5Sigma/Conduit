@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"conduit/info"
 	"conduit/log"
 	"fmt"
 	"github.com/pivotal-golang/bytefmt"
@@ -28,7 +27,7 @@ message count from the remote server.`,
 		}
 		log.Alert("\nSystem Statistics\n")
 		log.Stats("Host", client.Host)
-		log.Stats("Version", info.ConduitVersion)
+		log.Stats("Version", stats.Version)
 		if cmd.Flag("all").Value.String() == "true" {
 			log.Stats("Total messages", stats.MessageCount)
 		}

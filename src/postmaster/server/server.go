@@ -1,7 +1,6 @@
 package server
 
 import (
-	"conduit/info"
 	"conduit/log"
 	"encoding/json"
 	"github.com/kardianos/osext"
@@ -153,18 +152,6 @@ func sendError(w http.ResponseWriter, msg string) {
 	writeResponse(&w, e)
 }
 
-// validateVersion is used for version syncing. If the client's version does not
-// match the server's version the status code for the response is changed to
-// 426. The request is allowed to process normally.
-// If the client is configured to version sync it should upgrade after the
-// request finishes.
-func validateVersion(w http.ResponseWriter, version string) {
-	if version != info.ConduitVersion {
-		log.Warn("Client bad version: " + version + " != " + info.ConduitVersion)
-		w.WriteHeader(426)
-	}
-}
-
 // readRequest is a helper method to read the request body and convert it into
 // an arbitrary structure. The structure passed to it should be one of the
 // requests from the postmaster/api package.
@@ -202,6 +189,13 @@ func cleanupFiles() error {
 			}
 		} else if err != nil {
 			return err
+		} else {
+			if time.Since(f.ModTime()) > 720*time.Hour {
+				err := os.Remove(filepath.Join(filesPath(), f.Name()))
+				if err != nil {
+					log.Warn("File clenaup " + err.Error())
+				}
+			}
 		}
 	}
 	return nil

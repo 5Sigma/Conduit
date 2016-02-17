@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/viper"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"postmaster/client"
 	"runtime"
 )
@@ -138,6 +139,10 @@ func New() *ScriptEngine {
 	fileObj.Set("tempFile", _file_tempFile)
 	fileObj.Set("tempFolder", _file_tempFolder)
 	fileObj.Set("join", _file_join)
+	fileObj.Set("base", _file_base)
+	fileObj.Set("dir", _file_dir)
+	fileObj.Set("ext", _file_ext)
+	fileObj.Set("SEPARATOR", filepath.Separator)
 
 	requestObj, _ := vm.Object(`$http = {}`)
 	requestObj.Set("download", _http_download)

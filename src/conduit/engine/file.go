@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"github.com/robertkrimen/otto"
 	"io"
 	"io/ioutil"
@@ -90,7 +91,7 @@ func _file_move(call otto.FunctionCall) otto.Value {
 	destinationPath, _ := call.Argument(1).ToString()
 
 	if !fileExists(sourcePath) {
-		jsThrow(call, "Source file not found "+sourcePath)
+		jsThrow(call, errors.New("Source file not found "+sourcePath))
 	}
 
 	//check if destination exists and delete if so

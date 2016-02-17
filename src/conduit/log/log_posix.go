@@ -5,7 +5,9 @@ package log
 import (
 	"fmt"
 	"github.com/ttacon/chalk"
+	"os"
 	"strings"
+	"time"
 )
 
 func Status(label, value string, success bool) {
