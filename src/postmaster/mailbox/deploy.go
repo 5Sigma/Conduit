@@ -185,7 +185,7 @@ func (dp *Deployment) Stats() (*DeploymentStats, error) {
 		FROM 		message
 		WHERE 	deployment == $1 AND deleted == false;
 
-		SELECT 	count(*)
+		SELECT 	distinct count(mailbox)
 		FROM 		deploymentResponse
 		WHERE 	deployment == $1;`, dp.Id)
 	if err != nil {

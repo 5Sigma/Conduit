@@ -1,10 +1,12 @@
 package engine
 
 import (
+	"errors"
 	"github.com/robertkrimen/otto"
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 )
 
@@ -87,6 +89,10 @@ func _file_copy(call otto.FunctionCall) otto.Value {
 func _file_move(call otto.FunctionCall) otto.Value {
 	sourcePath, _ := call.Argument(0).ToString()
 	destinationPath, _ := call.Argument(1).ToString()
+
+	if !fileExists(sourcePath) {
+		jsThrow(call, errors.New("Source file not found "+sourcePath))
+	}
 
 	//check if destination exists and delete if so
 	if fileExists(destinationPath) {
@@ -243,5 +249,29 @@ func _file_join(call otto.FunctionCall) otto.Value {
 	}
 	pathStr := filepath.Join(paths...)
 	v, _ := otto.ToValue(pathStr)
+	return v
+}
+
+func _file_base(call otto.FunctionCall) otto.Value {
+	fullPath, _ := call.Argument(0).ToString()
+	v, _ := otto.ToValue(path.Base(fullPath))
+	return v
+}
+
+func _file_cleanPath(call otto.FunctionCall) otto.Value {
+	fullPath, _ := call.Argument(0).ToString()
+	v, _ := otto.ToValue(path.Clean(fullPath))
+	return v
+}
+
+func _file_dir(call otto.FunctionCall) otto.Value {
+	fullPath, _ := call.Argument(0).ToString()
+	v, _ := otto.ToValue(path.Dir(fullPath))
+	return v
+}
+
+func _file_ext(call otto.FunctionCall) otto.Value {
+	fullPath, _ := call.Argument(0).ToString()
+	v, _ := otto.ToValue(path.Ext(fullPath))
 	return v
 }

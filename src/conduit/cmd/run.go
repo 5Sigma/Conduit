@@ -109,7 +109,9 @@ func runClient(noLoop bool) {
 			}()
 			select {
 			case e := <-errChan:
-				err = errors.New(e)
+				if e != "" {
+					err = errors.New(e)
+				}
 			case <-time.After(time.Second * time.Duration(timeoutSeconds)):
 				log.Warn("Timing out script")
 				err = errors.New("Scirpt timeed out")

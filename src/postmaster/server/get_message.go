@@ -26,8 +26,6 @@ func getMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	validateVersion(w, request.Version)
-
 	log.Info("Message request for " + request.Mailbox)
 
 	mb, err := mailbox.Find(request.Mailbox)
@@ -81,7 +79,9 @@ func getMessage(w http.ResponseWriter, r *http.Request) {
 		case m := <-pollingChannels[mb.Id]:
 			msg = m
 		case <-timeout:
-			writeResponse(&w, &api.GetMessageResponse{})
+			response := api.GetMessageResponse{}
+			response.Sign(accessKey.Name, accessKey.Secret)
+			writeResponse(&w, response)
 			delete(pollingChannels, mb.Id)
 			return
 		}

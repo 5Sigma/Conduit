@@ -75,7 +75,8 @@ func (client *Client) request(endpoint string, req interface{}, res interface{})
 	if resp.StatusCode == 426 {
 		log.Warn("Server version does not match")
 	}
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != 200 && resp.StatusCode != 426 {
+		fmt.Printf("STATUS CODE IS %d\n", resp.StatusCode)
 		var errorResponse api.ApiError
 		json.Unmarshal(responseData, &errorResponse)
 		return errors.New(errorResponse.Error)

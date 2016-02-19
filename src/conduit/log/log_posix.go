@@ -5,7 +5,9 @@ package log
 import (
 	"fmt"
 	"github.com/ttacon/chalk"
+	"os"
 	"strings"
+	"time"
 )
 
 func Status(label, value string, success bool) {
@@ -39,4 +41,16 @@ func Stats(name string, value interface{}) {
 	str := fmt.Sprintf("%s %s %s %s %s", nameStr, padding, chalk.Blue, valueStr,
 		chalk.ResetColor)
 	write("", str, noStyle)
+}
+
+func writeFile(logType, text string) {
+	file, err := os.OpenFile(logPath(), os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
+	if err == nil {
+		now := time.Now().Format("2006-01-02 15:04:05")
+		logText := fmt.Sprintf("[%s] %s - %s\n", logType, now, text)
+		file.WriteString(logText)
+	}
+	if file != nil {
+		file.Close()
+	}
 }

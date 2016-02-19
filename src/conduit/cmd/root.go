@@ -56,9 +56,9 @@ func initConfig() {
 	exePath, _ := osext.ExecutableFolder()
 	wd, _ := os.Getwd()
 	viper.SetConfigName("conduit") // name of config file (without extension)
-	viper.AutomaticEnv()
 	viper.AddConfigPath(wd)
 	viper.AddConfigPath(exePath)
+	viper.AutomaticEnv()
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {

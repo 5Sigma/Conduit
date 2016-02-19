@@ -12,6 +12,8 @@ import (
 	"time"
 )
 
+var deployTimeout int
+
 // sendCmd represents the send command
 var deployCmd = &cobra.Command{
 	Use:     "deploy [file] [client]",
@@ -66,6 +68,7 @@ files.`,
 		}
 		log.Infof("Script deployed to %d mailboxes (%d bytes)",
 			len(resp.Mailboxes), len(data))
+		log.Infof("Deployment name: %s", resp.Deployment)
 
 		if cmd.Flag("no-results").Value.String() == "true" {
 			return
@@ -80,7 +83,7 @@ files.`,
 			func(stats *api.DeploymentStats) bool {
 				messagesProcessed := stats.MessageCount - stats.PendingCount
 				bar.Set(int(messagesProcessed))
-				if time.Since(pollStart) > 10*time.Second {
+				if time.Since(pollStart) > time.Duration(deployTimeout)*time.Second {
 					return false
 				}
 				if stats.PendingCount == 0 {
@@ -110,8 +113,14 @@ files.`,
 
 func init() {
 	RootCmd.AddCommand(deployCmd)
-	deployCmd.Flags().StringP("pattern", "p", "", "Wildcard search for mailboxes.")
-	deployCmd.Flags().StringP("name", "n", "", "Deployment name")
-	deployCmd.Flags().BoolP("no-results", "x", false, "Dont poll for responses.")
-	deployCmd.Flags().StringP("attach", "a", "", "Attach a file asset to this deployment.")
+	deployCmd.Flags().StringP("pattern", "p", "",
+		"Wildcard search for mailboxes.")
+	deployCmd.Flags().StringP("name", "n", "",
+		"A custom name for this deployment.")
+	deployCmd.Flags().BoolP("no-results", "x", false,
+		"Dont poll for responses.")
+	deployCmd.Flags().StringP("attach", "a", "",
+		"Attach a file asset to this deployment.")
+	deployCmd.Flags().IntVarP(&deployTimeout, "timeout", "t", 20,
+		"Response polling timeout.")
 }
