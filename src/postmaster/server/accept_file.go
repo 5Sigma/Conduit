@@ -18,8 +18,9 @@ func acceptFile(w http.ResponseWriter, r *http.Request) {
 	var (
 		request = api.UploadFileRequest{}
 	)
+	defer r.Body.Close()
 	// parse form post data
-	err := r.ParseMultipartForm(1000)
+	err := r.ParseMultipartForm(1000000)
 	if err != nil {
 		sendError(w, err.Error())
 		return
@@ -70,7 +71,6 @@ func acceptFile(w http.ResponseWriter, r *http.Request) {
 		sendError(w, err.Error())
 		return
 	}
-	out.Close()
 
 	fileHash, err := hashFile(path)
 	if err != nil {
@@ -116,7 +116,6 @@ func hashFile(fp string) (string, error) {
 }
 
 func checkfile(w http.ResponseWriter, r *http.Request) {
-
 	req := api.CheckFileRequest{}
 	err := readRequest(r, &req)
 	if err != nil {

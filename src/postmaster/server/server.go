@@ -106,7 +106,7 @@ func Start(addr string) error {
 	endpoints := EndPointHandler{}
 	svr := &http.Server{
 		Addr:         addr,
-		ReadTimeout:  10 * time.Second,
+		ReadTimeout:  1 * time.Minute,
 		WriteTimeout: 0,
 	}
 

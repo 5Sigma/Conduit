@@ -1,13 +1,17 @@
 package engine
 
 import (
+	"bufio"
+	"crypto/md5"
 	"errors"
+	"fmt"
 	"github.com/robertkrimen/otto"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 )
 
 // fileExists is a helper function used by other file functions in the package.
@@ -53,6 +57,10 @@ func _file_write(call otto.FunctionCall) otto.Value {
 func _file_copy(call otto.FunctionCall) otto.Value {
 	sourcePath, _ := call.Argument(0).ToString()
 	destinationPath, _ := call.Argument(1).ToString()
+
+	if !fileExists(sourcePath) {
+		jsThrow(call, errors.New("Source file does not exist"))
+	}
 
 	//check if destination exists and delete if so
 	if fileExists(destinationPath) {
@@ -273,5 +281,59 @@ func _file_dir(call otto.FunctionCall) otto.Value {
 func _file_ext(call otto.FunctionCall) otto.Value {
 	fullPath, _ := call.Argument(0).ToString()
 	v, _ := otto.ToValue(path.Ext(fullPath))
+	return v
+}
+
+func _file_eachLine(call otto.FunctionCall) otto.Value {
+	if len(call.ArgumentList) != 2 {
+		jsThrow(call, errors.New("Wrong number of arguments."))
+	}
+
+	sourcePath, _ := call.Argument(0).ToString()
+	fn := call.Argument(1)
+	if !fileExists(sourcePath) {
+		jsThrow(call, errors.New("Source file doesn't exist"))
+	}
+
+	file, err := os.Open(sourcePath)
+	if err != nil {
+		jsThrow(call, err)
+	}
+
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line != "" {
+			v, _ := otto.ToValue(line)
+			fn.Call(v, v)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		jsThrow(call, err)
+	}
+
+	return otto.Value{}
+}
+
+func _file_md5(call otto.FunctionCall) otto.Value {
+	if len(call.ArgumentList) == 0 {
+		jsThrow(call, errors.New("Invalid arguments"))
+	}
+	fp, _ := call.Argument(0).ToString()
+	file, err := os.Open(fp)
+	if file != nil {
+		defer file.Close()
+	}
+	if err != nil {
+		jsThrow(call, err)
+	}
+	hash := md5.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		jsThrow(call, err)
+	}
+	hashStr := fmt.Sprintf("%x", hash.Sum(nil))
+	v, _ := otto.ToValue(hashStr)
 	return v
 }

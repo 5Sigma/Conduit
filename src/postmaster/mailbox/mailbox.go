@@ -1,6 +1,7 @@
 package mailbox
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/cznic/ql"
@@ -43,7 +44,7 @@ type (
 // messageIds, deploymentIds, access tokens, etc.
 func GenerateIdentifier() string {
 	uuid, _ := uuid.NewV4()
-	return uuid.String()
+	return hex.EncodeToString(uuid[0:16])
 }
 
 // All returns a slice of all mailboxes.
@@ -120,8 +121,8 @@ func Create(id string) (*Mailbox, error) {
 	}
 	_, _, err = DB.Run(ql.NewRWCtx(), `
 		BEGIN TRANSACTION;
-		INSERT 	INTO mailbox ( id)
-		VALUES 	( $1);
+		INSERT 	INTO mailbox (id)
+		VALUES 	($1);
 		COMMIT;
 		`, mb.Id)
 	if err != nil {
@@ -222,10 +223,6 @@ func (mb *Mailbox) DeployMessage(depId string) (*Message, error) {
 
 	if deployment == nil {
 		return nil, errors.New(fmt.Sprintf("Deployment %s not found", depId))
-	}
-
-	if deployment.Open == false {
-		return nil, errors.New("The deployment has been closed")
 	}
 
 	msg := &Message{
