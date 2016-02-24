@@ -71,6 +71,8 @@ var infoClientsCmd = &cobra.Command{
 func init() {
 	infoCmd.AddCommand(infoClientsCmd)
 
-	infoClientsCmd.Flags().BoolP("offline", "x", false, "Show only offline clients")
-	infoClientsCmd.Flags().BoolP("info", "i", false, "Show addtional client information")
+	infoClientsCmd.Flags().BoolP("offline", "x", false,
+		"Show only offline clients")
+	infoClientsCmd.Flags().BoolP("verbose", "v", false,
+		"Show addtional client information")
 }

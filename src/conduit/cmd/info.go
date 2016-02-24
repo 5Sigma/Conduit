@@ -49,5 +49,5 @@ message count from the remote server.`,
 
 func init() {
 	RootCmd.AddCommand(infoCmd)
-	infoCmd.Flags().BoolP("all", "a", false, "Show all details.")
+	infoCmd.Flags().BoolP("verbose", "v", false, "Show all details.")
 }
