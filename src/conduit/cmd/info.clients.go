@@ -1,17 +1,3 @@
-// Copyright © 2016 NAME HERE <EMAIL ADDRESS>
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package cmd
 
 import (
@@ -32,14 +18,17 @@ var infoClientsCmd = &cobra.Command{
 			log.Debug(err.Error())
 			log.Fatal("Could not configure client")
 		}
+
 		stats, err := client.ClientStatus()
 		if err != nil {
 			log.Debug(err.Error())
 			log.Fatal("Could not retrieve statistics")
 		}
+		stats.Sort()
+
 		for _, st := range stats {
 			versionStr := ""
-			if cmd.Flag("info").Value.String() == "true" {
+			if cmd.Flag("verbose").Value.String() == "true" {
 				if st.Version == "" {
 					versionStr = "[ ? ]"
 				} else {
@@ -47,7 +36,7 @@ var infoClientsCmd = &cobra.Command{
 				}
 			}
 			kStr := fmt.Sprintf("%s %s", versionStr, st.Mailbox)
-			if cmd.Flag("info").Value.String() == "true" {
+			if cmd.Flag("verbose").Value.String() == "true" {
 				kStr += fmt.Sprintf(" (%s)", st.Host)
 			}
 			var vStr = ""
@@ -71,6 +60,8 @@ var infoClientsCmd = &cobra.Command{
 func init() {
 	infoCmd.AddCommand(infoClientsCmd)
 
-	infoClientsCmd.Flags().BoolP("offline", "x", false, "Show only offline clients")
-	infoClientsCmd.Flags().BoolP("info", "i", false, "Show addtional client information")
+	infoClientsCmd.Flags().BoolP("offline", "x", false,
+		"Show only offline clients")
+	infoClientsCmd.Flags().BoolP("verbose", "v", false,
+		"Show addtional client information")
 }

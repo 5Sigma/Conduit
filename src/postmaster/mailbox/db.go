@@ -21,7 +21,7 @@ func CreateDB() error {
 			);
 
 			INSERT INTO 	properties
-			VALUES 				("dbversion", "1");
+			VALUES 				("dbversion", "2");
 
 			CREATE TABLE message (
 				id 							string,
@@ -36,6 +36,8 @@ func CreateDB() error {
 			CREATE TABLE mailbox (
 				id  								string,
 				createdAt 					time,
+				version 						string,
+				host 								string,
 				lastCheckedInAt 		time
 			);
 
@@ -64,9 +66,6 @@ func CreateDB() error {
 				respondedAt 	time,
 				isError 			bool
 			);
-
-			INSERT INTO 	accessToken (mailbox, token, name, fullAccess)
-			VALUES 				("conduit.system", "SYSTEM", "conduit.system", false);
 			COMMIT;`)
 	return err
 }

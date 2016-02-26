@@ -361,3 +361,9 @@ func TestRegister(t *testing.T) {
 		t.Fatal("Key not bound to mailbox")
 	}
 }
+
+func TestFileUpload(t *testing.T) {
+	key := mailbox.AccessKey{FullAccess: true}
+	key.Create()
+
+}

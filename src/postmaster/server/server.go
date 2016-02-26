@@ -106,8 +106,8 @@ func Start(addr string) error {
 	endpoints := EndPointHandler{}
 	svr := &http.Server{
 		Addr:         addr,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 0,
+		ReadTimeout:  12 * time.Minute,
+		WriteTimeout: 12 * time.Minute,
 	}
 
 	endpoints.Add("GET", `/upgrade`, sendConduitBinary)
@@ -147,7 +147,7 @@ func sendError(w http.ResponseWriter, msg string) {
 	e := &api.ApiError{
 		Error: msg,
 	}
-	log.Error(msg)
+	log.Debug("Client error sent: " + msg)
 	w.WriteHeader(http.StatusBadRequest)
 	writeResponse(&w, e)
 }

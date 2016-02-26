@@ -22,6 +22,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"math"
+	"math/rand"
 	"net/http"
 	"time"
 )
@@ -54,6 +55,7 @@ func runClient(noLoop bool) {
 
 	// Begin polling cycle
 	for {
+		time.Sleep(time.Duration(rand.Intn(1000)+2000) * time.Millisecond)
 		resp, err := client.Get()
 
 		// If an error is returned by the client we will begin an exponential back
@@ -63,7 +65,10 @@ func runClient(noLoop bool) {
 			if errorCount < 15 {
 				errorCount++
 			}
-			time.Sleep(time.Duration(math.Pow(float64(errorCount), 2)) * time.Second)
+			expBackoff := int(math.Pow(float64(errorCount), 2))
+			displacement := rand.Intn(errorCount + 1)
+			sleepTime := expBackoff + displacement
+			time.Sleep(time.Duration(sleepTime) * time.Second)
 			continue
 		}
 

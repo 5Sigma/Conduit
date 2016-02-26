@@ -38,6 +38,10 @@ func Warn(msg string) {
 	write("WARN", msg, chalk.Yellow.Color)
 }
 
+func Warnf(msg string, a ...interface{}) {
+	Warn(fmt.Sprintf(msg, a...))
+}
+
 func Error(msg string) {
 	Errorf("%s", msg)
 }
@@ -54,6 +58,10 @@ func Debug(msg string) {
 	if ShowDebug == true {
 		write("DEBUG", msg, chalk.Blue.Color)
 	}
+}
+
+func Debugf(msg string, a ...interface{}) {
+	Debug(fmt.Sprintf(msg, a...))
 }
 
 func Alertf(msg string, a ...interface{}) {

@@ -75,8 +75,7 @@ func (client *Client) request(endpoint string, req interface{}, res interface{})
 	if resp.StatusCode == 426 {
 		log.Warn("Server version does not match")
 	}
-	if resp.StatusCode != 200 && resp.StatusCode != 426 {
-		fmt.Printf("STATUS CODE IS %d\n", resp.StatusCode)
+	if resp.StatusCode != 200 {
 		var errorResponse api.ApiError
 		json.Unmarshal(responseData, &errorResponse)
 		return errors.New(errorResponse.Error)
@@ -172,7 +171,7 @@ func (client *Client) Stats() (*api.SystemStatsResponse, error) {
 	return &response, nil
 }
 
-func (client *Client) ClientStatus() ([]api.ClientStatus, error) {
+func (client *Client) ClientStatus() (api.ClientStatusCollection, error) {
 	request := api.SimpleRequest{}
 	request.Sign(client.AccessKeyName, client.AccessKey)
 	var response api.ClientStatusResponse
@@ -279,6 +278,9 @@ func (client *Client) DeregisterMailbox(m string) (*api.SimpleResponse, error) {
 	request.Sign(client.AccessKeyName, client.AccessKey)
 	var response *api.SimpleResponse
 	err := client.request("deregister", request, &response)
+	if err != nil {
+		return nil, err
+	}
 	if !response.Validate(client.AccessKey) {
 		return nil, errors.New("Could not validate signature")
 	}
@@ -309,6 +311,8 @@ func (client *Client) Upload(fpath string) (*api.SimpleResponse, error) {
 		req    = api.UploadFileRequest{Filename: filepath.Base(fpath)}
 		err    error
 	)
+
+	defer writer.Close()
 
 	req.MD5, err = client.hashFile(fpath)
 	if err != nil {
@@ -344,6 +348,7 @@ func (client *Client) Upload(fpath string) (*api.SimpleResponse, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	_, err = io.Copy(part, file)
 	writer.Close()
 
@@ -357,7 +362,6 @@ func (client *Client) Upload(fpath string) (*api.SimpleResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	// Read the response
 	responseData, _ := ioutil.ReadAll(resp.Body)
 	if resp.StatusCode != 200 {

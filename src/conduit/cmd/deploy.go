@@ -101,13 +101,9 @@ files.`,
 		if len(stats.Responses) > 0 {
 			log.Alert("\nResponses:")
 		}
-		for _, r := range stats.Responses {
-			if r.IsError == true {
-				log.Errorf("%s: %s", r.Mailbox, r.Response)
-			} else {
-				log.Infof("%s: %s", r.Mailbox, r.Response)
-			}
-		}
+		stats.Responses.Sort()
+		displayResponses(stats.Responses,
+			cmd.Flag("expand").Value.String() != "true")
 	},
 }
 
@@ -123,4 +119,6 @@ func init() {
 		"Attach a file asset to this deployment.")
 	deployCmd.Flags().IntVarP(&deployTimeout, "timeout", "t", 20,
 		"Response polling timeout.")
+	deployCmd.Flags().BoolP("expand", "e", false,
+		"Expand results (don't consolidate)")
 }

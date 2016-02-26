@@ -36,6 +36,10 @@ Agents must also have the same access_key as their handler in the config file.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		agent.Address = viper.GetString("agent_host")
 		agent.AccessKey = viper.GetString("access_key")
+		if agent.Address == "" {
+			cmd.Help()
+			log.Fatal("\nThe 'agent_host' field in the config file is not present.")
+		}
 		log.Info("Starting agent on " + agent.Address)
 		agent.Start()
 	},
