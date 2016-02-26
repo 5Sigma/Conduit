@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"postmaster/api"
 	"postmaster/mailbox"
+	"time"
 )
 
 // putMessage is used to deploy messages to mailboxes, etiher by a list of
@@ -98,6 +99,7 @@ func putMessage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if pollChannel, ok := pollingChannels[mb.Id]; ok {
+			time.Sleep(50 * time.Millisecond)
 			pollChannel <- msg
 		}
 	}

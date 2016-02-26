@@ -3,6 +3,7 @@ package server
 import (
 	"conduit/log"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"postmaster/api"
 	"postmaster/mailbox"
@@ -26,8 +27,6 @@ func getMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Info("Message request for " + request.Mailbox)
-
 	mb, err := mailbox.Find(request.Mailbox)
 	if err != nil {
 		sendError(w, err.Error())
@@ -35,19 +34,22 @@ func getMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if mb == nil {
-		log.Errorf("Could not find a mailbox named '%s'", request.Mailbox)
+		log.Warnf("Could not find a mailbox named '%s'", request.Mailbox)
 		sendError(w, fmt.Sprintf("Mailbox %s not found.", request.Mailbox))
 		return
 	}
 
+	log.Debugf("Message request from %s", mb.Id)
+
 	accessKey, err := mailbox.FindKeyByName(request.AccessKeyName)
 	if accessKey == nil {
-		log.Errorf("Could not find an access key named '%s'", request.AccessKeyName)
+		log.Warnf("Could not find an access key named '%s'", request.AccessKeyName)
 		sendError(w, "Access key is invalid")
 		return
 	}
 
 	if !request.Validate(accessKey.Secret) {
+		log.Warnf(fmt.Sprintf("Signature for %s invalid", mb.Id))
 		sendError(w, "Signature is invalid")
 		return
 	}
@@ -65,16 +67,27 @@ func getMessage(w http.ResponseWriter, r *http.Request) {
 	msg, err := mb.GetMessage()
 	if err != nil {
 		sendError(w, err.Error())
+		log.Errorf("Error retrieving messages: %s", err.Error())
 		return
 	}
 
 	if EnableLongPolling == true && msg == nil {
+		if _, ok := pollingChannels[mb.Id]; ok {
+			delete(pollingChannels, mb.Id)
+		}
+		// Create a channel for the client. This channel has a message pushed to it
+		// from the putMessage function. When a message gets delivered.
 		pollingChannels[mb.Id] = make(chan *mailbox.Message)
 		timeout := make(chan bool, 1)
+		// This goroutine will create a timeout to close the long polling connection
+		// and force the client to reconnect.
 		go func() {
-			time.Sleep(100 * time.Second)
+			// Randomize the polling timeout in order to stagger client reconnects.
+			sleepTime := rand.Intn(500) + 200
+			time.Sleep(time.Duration(sleepTime) * time.Second)
 			timeout <- true
 		}()
+		// Wait for either a timeout or a message to be sent to a channel.
 		select {
 		case m := <-pollingChannels[mb.Id]:
 			msg = m
@@ -109,7 +122,7 @@ func getMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Sign(accessKey.Name, accessKey.Secret)
-	log.Infof("Delivering message %s", response.Message)
+	log.Infof("Delivering message %s to %s", response.Message, mb.Id)
 
 	writeResponse(&w, response)
 }

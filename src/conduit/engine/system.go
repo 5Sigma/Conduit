@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"conduit/log"
 	"fmt"
 	"github.com/robertkrimen/otto"
 	"os"
@@ -86,4 +87,10 @@ func _system_env(call otto.FunctionCall) otto.Value {
 	eStr := os.Getenv(key)
 	oStr, _ := otto.ToValue(eStr)
 	return oStr
+}
+
+func _system_exit(call otto.FunctionCall) otto.Value {
+	log.Info("Shutdown from script.")
+	os.Exit(0)
+	return otto.Value{}
 }

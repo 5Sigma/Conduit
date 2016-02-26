@@ -28,13 +28,13 @@ message count from the remote server.`,
 		log.Alert("\nSystem Statistics\n")
 		log.Stats("Host", client.Host)
 		log.Stats("Version", stats.Version)
-		if cmd.Flag("all").Value.String() == "true" {
+		if cmd.Flag("verbose").Value.String() == "true" {
 			log.Stats("Total messages", stats.MessageCount)
 		}
 		log.Stats("Pending messages", stats.PendingMessages)
 		log.Stats("Connected clients",
 			fmt.Sprintf("%d / %d", stats.ConnectedClients, stats.TotalMailboxes))
-		if cmd.Flag("all").Value.String() == "true" {
+		if cmd.Flag("verbose").Value.String() == "true" {
 			log.Stats("Database version", stats.DBVersion)
 			log.Stats("CPU's in use", stats.CPUCount)
 			log.Stats("Active threads", stats.Threads)

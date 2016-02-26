@@ -160,6 +160,7 @@ func New() *ScriptEngine {
 	systemObj.Set("kill", _system_kill)
 	systemObj.Set("env", _system_env)
 	systemObj.Set("expand", _system_expand)
+	systemObj.Set("exit", _system_exit)
 	systemObj.Set("PLATFORM", runtime.GOOS)
 	systemObj.Set("ARCH", runtime.GOARCH)
 	systemObj.Set("VERSION", info.ConduitVersion)
