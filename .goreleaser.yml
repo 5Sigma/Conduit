@@ -1,0 +1,33 @@
+# .goreleaser.yml
+builds:
+  - binary: conduit
+    goos:
+      - windows
+      - darwin
+      - linux
+    goarch:
+      - amd64
+brew:
+  github:
+    owner: 5sigma
+    name: homebrew-tap
+  homepage: https://conduit.5sigma.io
+  description: Conduit can be used to control large numbers of remote machines. Allowing commands to be pushed to them using a JavaScript based language.
+fpm:
+  vendor: 5sigma
+  homepage: https://conduit.5sigma.io
+  maintainer: Joe Bellus <joe@5sigma.io>
+  description: Conduit can be used to control large numbers of remote machines. Allowing commands to be pushed to them using a JavaScript based language.
+  license: Apache 2.0
+  formats:
+    - deb
+    - rpm
+snapcraft:
+  name: conduit
+  summary: API testing and request utility for the console
+  description: Conduit can be used to control large numbers of remote machines. Allowing commands to be pushed to them using a JavaScript based language.
+  grade: stable
+  confinement: strict
+  apps:
+    conduit:
+      daemon: simple
